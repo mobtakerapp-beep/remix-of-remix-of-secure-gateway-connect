@@ -12,13 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-import { getOwnerCredentials, type OwnerCredentials } from "@/lib/access.functions";
 import { confirmUnconfirmedEmail, resetPasswordWithCode, signUpDirect } from "@/lib/auth.functions";
 import { useI18n } from "@/lib/i18n";
 import { saveProfile } from "@/lib/subscription.functions";
-
-const ADMIN_EMAIL = "UUxz272@gmail.com";
-const ADMIN_RECOVERY_CODE = "UUXZ@272";
 
 export const Route = createFileRoute("/auth/")({
   head: () => ({
@@ -41,11 +37,6 @@ function AuthPage() {
   const confirmUnconfirmed = useServerFn(confirmUnconfirmedEmail);
   const saveProfileFn = useServerFn(saveProfile);
   const resetPasswordFn = useServerFn(resetPasswordWithCode);
-  const ownerCreds = useServerFn(getOwnerCredentials);
-  const [owner, setOwner] = useState<OwnerCredentials>({
-    email: ADMIN_EMAIL,
-    serial: ADMIN_RECOVERY_CODE,
-  });
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [remember, setRemember] = useState(true);
@@ -65,26 +56,6 @@ function AuthPage() {
     });
   }, [navigate]);
 
-  // Owner email + serial come from the cloud, so they survive every page
-  // change and are never lost with local state.
-  useEffect(() => {
-    let alive = true;
-    ownerCreds()
-      .then((creds: OwnerCredentials) => {
-        if (!alive) return;
-        setOwner(creds);
-        setEmail((current) => current || localStorage.getItem("remembered_email") || creds.email);
-        setResetCode((current) => current || creds.serial);
-      })
-      .catch(() => {
-        /* keep the built-in defaults */
-      });
-    return () => {
-      alive = false;
-    };
-  }, [ownerCreds]);
-
-  // Remembered email (saved locally on the device).
   useEffect(() => {
     const saved = localStorage.getItem("remembered_email");
     if (saved) {
@@ -99,14 +70,12 @@ function AuthPage() {
   };
 
   const toggleReset = () => {
-    const opening = !showReset;
-    setShowReset(opening);
-    if (opening && (!email.trim() || email.trim().toLowerCase() === owner.email.toLowerCase())) {
-      setEmail(owner.email);
-      setResetCode(owner.serial);
+    setShowReset((v) => !v);
+    if (!showReset) {
+      setResetCode("");
+      setResetPassword("");
     }
   };
-
 
   const resetWithCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,40 +98,20 @@ function AuthPage() {
           throw new Error(ar ? "لا يوجد حساب بهذا البريد." : "No account found with this email.");
         }
         if (result.code === "bad_code") {
-          throw new Error(
-            ar
-              ? "كود التفعيل غير صحيح أو منتهي الصلاحية."
-              : "Activation code is invalid or expired.",
-          );
+          throw new Error(ar ? "كود التفعيل غير صحيح أو منتهي الصلاحية." : "Activation code is invalid or expired.");
         }
         if (result.code === "weak_password") {
-          throw new Error(
-            ar
-              ? "كلمة المرور ضعيفة. استخدم ٦ أحرف على الأقل مع أرقام ورموز."
-              : "Password is too weak. Use at least 6 characters with numbers and symbols.",
-          );
+          throw new Error(ar ? "كلمة المرور ضعيفة. استخدم ٦ أحرف على الأقل مع أرقام ورموز." : "Password is too weak. Use at least 6 characters with numbers and symbols.");
         }
         if (result.code === "invalid_input") {
-          throw new Error(
-            ar
-              ? "بيانات غير صالحة: تحقّق من البريد الإلكتروني وكود التفعيل."
-              : "Invalid input: check the email address and activation code.",
-          );
+          throw new Error(ar ? "بيانات غير صالحة: تحقّق من البريد الإلكتروني وكود التفعيل." : "Invalid input: check the email address and activation code.");
         }
         if (result.code === "server_config") {
-          throw new Error(
-            ar
-              ? "إعدادات الخادم ناقصة (مفتاح الخدمة غير مضبوط). تواصل مع الدعم."
-              : "Server configuration is incomplete (service key missing). Contact support.",
-          );
+          throw new Error(ar ? "إعدادات الخادم ناقصة. تواصل مع الدعم." : "Server configuration is incomplete. Contact support.");
         }
         throw new Error(ar ? "تعذّر إعادة تعيين كلمة المرور." : "Could not reset password.");
       }
-      toast.success(
-        ar
-          ? "تم تغيير كلمة المرور. يمكنك الآن تسجيل الدخول."
-          : "Password changed. You can now sign in.",
-      );
+      toast.success(ar ? "تم تغيير كلمة المرور. يمكنك الآن تسجيل الدخول." : "Password changed. You can now sign in.");
       setShowReset(false);
       setResetCode("");
       setResetPassword("");
@@ -181,7 +130,6 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        // Preferred path: create the user as confirmed on the server.
         let created: Awaited<ReturnType<typeof createAccount>>;
         try {
           created = await createAccount({
@@ -196,8 +144,6 @@ function AuthPage() {
           created = { ok: false, code: "failed", message: "" };
         }
 
-        // If the server path isn't available on this deployment, fall back to a
-        // normal signup (email confirmation is disabled on the backend).
         if (!created.ok && created.code === "failed") {
           const { error: signUpError } = await supabase.auth.signUp({
             email: email.trim(),
@@ -217,7 +163,6 @@ function AuthPage() {
           password,
         });
         if (error) throw error;
-        // Persist the teacher name / school on the profile right away.
         try {
           await saveProfileFn({
             data: { teacherName: teacherName.trim(), school: school.trim() },
@@ -234,19 +179,15 @@ function AuthPage() {
           password,
         });
 
-        // For old accounts that weren't auto-confirmed, try to confirm them
-        // server-side before retrying the login
         if (error && /confirm|unconfirm/i.test(error.message)) {
           try {
             await confirmUnconfirmed({ data: { email: email.trim() } });
-            // Retry login after confirming
             ({ error } = await supabase.auth.signInWithPassword({
               email: email.trim(),
               password,
             }));
           } catch (confirmError) {
             console.error("Failed to confirm email:", confirmError);
-            // Continue with the original error
           }
         }
         if (error) throw error;
@@ -277,7 +218,7 @@ function AuthPage() {
       <Card className="w-full max-w-md rounded-3xl border-border/70 p-6 shadow-[var(--shadow-lift)] sm:p-8" dir={ar ? "rtl" : "ltr"}>
         <Link
           to="/"
-          aria-label={ar ? "الرجوع للصفحة الرئيسي��" : "Back to home"}
+          aria-label={ar ? "الرجوع للصفحة الرئيسية" : "Back to home"}
           title={ar ? "الرجوع للصفحة الرئيسية" : "Back to home"}
           className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
@@ -301,26 +242,14 @@ function AuthPage() {
                 <Label htmlFor="teacher">{t.teacherName}</Label>
                 <div className="relative">
                   <UserIcon className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-muted-foreground ltr:left-3 rtl:right-3" />
-                  <Input
-                    id="teacher"
-                    value={teacherName}
-                    onChange={(e) => setTeacherName(e.target.value)}
-                    placeholder={t.teacherPlaceholder}
-                    className="rounded-xl ltr:pl-10 rtl:pr-10"
-                  />
+                  <Input id="teacher" value={teacherName} onChange={(e) => setTeacherName(e.target.value)} placeholder={t.teacherPlaceholder} className="rounded-xl ltr:pl-10 rtl:pr-10" />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="school">{ar ? "المدرسة" : "School"}</Label>
                 <div className="relative">
                   <School className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-muted-foreground ltr:left-3 rtl:right-3" />
-                  <Input
-                    id="school"
-                    value={school}
-                    onChange={(e) => setSchool(e.target.value)}
-                    placeholder={ar ? "اسم المدرسة (اختياري)" : "School name (optional)"}
-                    className="rounded-xl ltr:pl-10 rtl:pr-10"
-                  />
+                  <Input id="school" value={school} onChange={(e) => setSchool(e.target.value)} placeholder={ar ? "اسم المدرسة (اختياري)" : "School name (optional)"} className="rounded-xl ltr:pl-10 rtl:pr-10" />
                 </div>
               </div>
             </>
@@ -330,15 +259,7 @@ function AuthPage() {
             <Label htmlFor="email">{ar ? "البريد الإلكتروني" : "Email"}</Label>
             <div className="relative">
               <Mail className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-muted-foreground ltr:left-3 rtl:right-3" />
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={ar ? "بريدك الإلكتروني" : "your@email.com"}
-                className="rounded-xl ltr:pl-10 rtl:pr-10"
-                required
-              />
+              <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={ar ? "بريدك الإلكتروني" : "your@email.com"} className="rounded-xl ltr:pl-10 rtl:pr-10" required />
             </div>
           </div>
 
@@ -347,122 +268,47 @@ function AuthPage() {
               <Label htmlFor="password">{ar ? "كلمة المرور" : "Password"}</Label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-muted-foreground ltr:left-3 rtl:right-3" />
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={ar ? "كلمة المرور (٦ أحرف على الأقل)" : "Password (min 6 characters)"}
-                  className="rounded-xl ltr:pl-10 rtl:pr-10"
-                  required
-                  minLength={6}
-                />
+                <Input id="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="rounded-xl ltr:pl-10 rtl:pr-10" required />
               </div>
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="size-4 accent-[hsl(var(--primary))]"
-              />
-              {ar ? "تذكّر بريدي" : "Remember my email"}
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              {ar ? "تذكر البريد" : "Remember email"}
             </label>
-            {mode === "login" && (
-              <button
-                type="button"
-                onClick={toggleReset}
-                className="text-sm font-medium text-primary hover:underline disabled:opacity-60"
-              >
-                {showReset
-                  ? (ar ? "العودة لتسجيل الدخول" : "Back to sign in")
-                  : (ar ? "نسيت كلمة المرور؟" : "Forgot password?")}
-              </button>
-            )}
+            <button type="button" className="text-primary hover:underline" onClick={toggleReset}>
+              {showReset ? (ar ? "العودة لتسجيل الدخول" : "Back to sign in") : (ar ? "نسيت كلمة المرور؟" : "Forgot password?")}
+            </button>
           </div>
 
-          {showReset && (
-            <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/40 p-4">
-              <p className="text-sm text-muted-foreground">
-                {ar
-                  ? "أدخل السريال الذي اشتريته وكلمة المرور الجديدة."
-                  : "Enter the serial you purchased and your new password."}
-              </p>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="serial">{ar ? "السريال" : "Serial"}</Label>
-                  <Input
-                    id="serial"
-                    value={resetCode}
-                    onChange={(e) => setResetCode(e.target.value)}
-                    placeholder={ar ? "السريال المشتري" : "Purchased serial"}
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="newPassword">{ar ? "كلمة المرور الجديدة" : "New password"}</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    value={resetPassword}
-                    onChange={(e) => setResetPassword(e.target.value)}
-                    placeholder={ar ? "كلمة مرور جديدة (٦ أحرف على الأقل)" : "New password (min 6 characters)"}
-                    className="rounded-xl"
-                    minLength={6}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  size="lg"
-                  onClick={resetWithCode}
-                  className="w-full rounded-full gradient-hero text-primary-foreground"
-                  disabled={resetting}
-                >
-                  {resetting
-                    ? (ar ? "جارٍ التغيير…" : "Changing…")
-                    : (ar ? "تغيير كلمة المرور" : "Change password")}
-                </Button>
+          {showReset ? (
+            <div className="space-y-4 rounded-2xl border border-border p-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="reset-code">{ar ? "كود التفعيل" : "Activation code"}</Label>
+                <Input id="reset-code" value={resetCode} onChange={(e) => setResetCode(e.target.value)} placeholder={ar ? "اكتب كود التفعيل" : "Enter activation code"} className="rounded-xl" />
               </div>
-
+              <div className="space-y-1.5">
+                <Label htmlFor="reset-password">{ar ? "كلمة المرور الجديدة" : "New password"}</Label>
+                <Input id="reset-password" type="password" autoComplete="new-password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="••••••••" className="rounded-xl" />
+              </div>
+              <Button type="button" className="w-full rounded-xl" disabled={resetting} onClick={resetWithCode}>
+                {resetting ? (ar ? "جارٍ التغيير…" : "Changing…") : (ar ? "تغيير كلمة المرور" : "Change password")}
+              </Button>
             </div>
+          ) : (
+            <Button type="submit" className="w-full rounded-xl" disabled={loading}>
+              {loading ? (ar ? "جارٍ التنفيذ…" : "Working…") : mode === "login" ? (ar ? "تسجيل الدخول" : "Sign in") : (ar ? "إنشاء الحساب" : "Create account")}
+            </Button>
           )}
 
           {!showReset && (
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full rounded-full gradient-hero text-primary-foreground"
-              disabled={loading}
-            >
-              {loading
-                ? (ar ? "جارٍ المعالجة…" : "Processing…")
-                : mode === "login"
-                  ? (ar ? "دخول" : "Sign in")
-                  : (ar ? "إنشاء الحساب" : "Sign up")}
-            </Button>
+            <button type="button" className="w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline" onClick={() => setMode(mode === "login" ? "signup" : "login")}>
+              {mode === "login" ? (ar ? "ليس لديك حساب؟ إنشاء حساب" : "Need an account? Create one") : (ar ? "لديك حساب بالفعل؟ تسجيل الدخول" : "Already have an account? Sign in")}
+            </button>
           )}
         </form>
-
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            className="text-sm font-medium text-primary hover:underline"
-            onClick={() => setMode(mode === "login" ? "signup" : "login")}
-          >
-            {mode === "login"
-              ? (ar ? "ليس لديك حساب؟ أنشئ حسابًا" : "No account? Sign up")
-              : (ar ? "لديك حساب؟ سجّل دخولك" : "Have an account? Sign in")}
-          </button>
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-amber/30 bg-amber/10 p-3 text-center text-xs text-amber-foreground">
-          {ar
-            ? "الحساب المجاني يتيح محاولة واحدة فقط. اشترك للحصول على وصول غير محدود."
-            : "Free plan allows one generation only. Subscribe for unlimited access."}
-        </div>
       </Card>
     </main>
   );
