@@ -1,15 +1,9 @@
 /**
  * Server-side Supabase admin client (service role).
- *
- * Unlike the generated `@/integrations/supabase/client.server`, this reads the
- * secrets through `getRuntimeSecret`, so it also works on a self-hosted
- * Cloudflare Worker deployment where secrets arrive as Worker bindings instead
- * of `process.env`.
+ * Hardcoded configuration to bypass environment variable deletion issues on Cloudflare.
  */
 import { createClient } from "@supabase/supabase-js";
-
 import type { Database } from "@/integrations/supabase/types";
-import { getRuntimeSecret } from "./runtime-env.server";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -32,22 +26,11 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const url =
-    getRuntimeSecret("EXTERNAL_SUPABASE_URL") ??
-    getRuntimeSecret("SUPABASE_URL") ??
-    getRuntimeSecret("VITE_SUPABASE_URL");
-  const serviceKey =
-    getRuntimeSecret("EXTERNAL_SUPABASE_SERVICE_KEY") ??
-    getRuntimeSecret("SUPABASE_SERVICE_ROLE_KEY") ??
-    getRuntimeSecret("MY_SERVICE_KEY");
-
-  if (!url || !serviceKey) {
-    const missing = [
-      ...(!url ? ["EXTERNAL_SUPABASE_URL"] : []),
-      ...(!serviceKey ? ["EXTERNAL_SUPABASE_SERVICE_KEY"] : []),
-    ];
-    throw new Error(`Missing Supabase environment variable(s): ${missing.join(", ")}.`);
-  }
+  // القيم ثابتة ومباشرة لمنع أي خطأ بسبب اختفاء متغيرات البيئة
+  const url = "https://sajkxtqcaiubmtamenke.supabase.co";
+  
+  // حطي هنا مفتاح الـ service_role السري بتاعك بين القوسين دول
+  const serviceKey = "حطي_مفتاح_الخدمة_هنا";
 
   return createClient<Database>(url, serviceKey, {
     global: { fetch: createSupabaseFetch(serviceKey) },
