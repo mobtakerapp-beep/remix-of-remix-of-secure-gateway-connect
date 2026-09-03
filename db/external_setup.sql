@@ -242,3 +242,18 @@ create trigger user_lessons_updated_at before update on public.user_lessons
 drop trigger if exists lesson_shares_updated_at on public.lesson_shares;
 create trigger lesson_shares_updated_at before update on public.lesson_shares
   for each row execute function public.set_updated_at();
+
+-- 9) Preserve original serials / admin from the old database ----------------
+insert into public.activation_codes (id, code, plan, duration_days, max_uses, used_count, note, active, created_at)
+values
+  ('9e188386-1d26-4fa2-93d3-5f385ff11e14','PVBZ-L7GK-Z67H','monthly',8,30,0,'هدية 8 أيام',true,'2026-09-02 19:35:05.111447+00'),
+  ('7542c050-3e54-4a45-8868-2dd1cc7d9c5d','UUXZ@272','yearly',36500,1000,0,'سيريال الأدمن',true,'2026-09-02 19:35:05.111447+00')
+on conflict (code) do update
+  set plan = excluded.plan, duration_days = excluded.duration_days,
+      max_uses = excluded.max_uses, note = excluded.note, active = true;
+
+-- Owner admin role (only applies once that auth user exists in the new project)
+insert into public.user_roles (id, user_id, role)
+select '025dc5b6-3951-431b-b78e-76bb9bca899b','743baa5a-c669-4a40-b020-a5ae1a09b877','admin'::app_role
+where exists (select 1 from auth.users where id = '743baa5a-c669-4a40-b020-a5ae1a09b877')
+on conflict (user_id, role) do nothing;
