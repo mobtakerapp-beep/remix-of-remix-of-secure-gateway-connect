@@ -38,7 +38,7 @@ export type Database = {
           id?: string
           max_uses?: number
           note?: string | null
-          plan: string
+          plan?: string
           used_count?: number
         }
         Update: {
@@ -53,6 +53,27 @@ export type Database = {
           note?: string | null
           plan?: string
           used_count?: number
+        }
+        Relationships: []
+      }
+      ai_generation_log: {
+        Row: {
+          created_at: string
+          id: string
+          mode: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mode?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mode?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -88,54 +109,24 @@ export type Database = {
           },
         ]
       }
-      lesson_shares: {
-        Row: {
-          created_at: string
-          id: string
-          package: Json
-          title: string
-          token: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          package: Json
-          title: string
-          token: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          package?: Json
-          title?: string
-          token?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           created_at: string
           id: string
           school: string
           teacher_name: string
-          updated_at: string
         }
         Insert: {
           created_at?: string
           id: string
           school?: string
           teacher_name?: string
-          updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           school?: string
           teacher_name?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -148,7 +139,6 @@ export type Database = {
           plan: string
           reset_at: string
           status: string
-          updated_at: string
           user_id: string
         }
         Insert: {
@@ -159,7 +149,6 @@ export type Database = {
           plan?: string
           reset_at?: string
           status?: string
-          updated_at?: string
           user_id: string
         }
         Update: {
@@ -170,53 +159,22 @@ export type Database = {
           plan?: string
           reset_at?: string
           status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_lessons: {
-        Row: {
-          created_at: string
-          id: string
-          package: Json
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          package: Json
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          package?: Json
-          title?: string
-          updated_at?: string
           user_id?: string
         }
         Relationships: []
       }
       user_roles: {
         Row: {
-          created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
@@ -232,8 +190,7 @@ export type Database = {
         Args: { _school?: string; _teacher_name?: string; _user_id: string }
         Returns: undefined
       }
-      ensure_fixed_admin: { Args: { _user_id: string }; Returns: undefined }
-      fixed_admin_email: { Args: never; Returns: string }
+      count_generations_today: { Args: { _user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -241,7 +198,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_fixed_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
