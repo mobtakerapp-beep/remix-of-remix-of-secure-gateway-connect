@@ -196,7 +196,7 @@ export const adminCreateCodes = createServerFn({ method: "POST" })
     const rows = Array.from({ length: data.count }, (_unused, i) => ({
       code: gen(),
       plan: normalizedPlan,
-      duration_days: 30,
+      duration_days: data.durationDays,
       max_uses: data.maxUses,
       note: data.notes?.[i]?.trim() || data.note?.trim() || null,
       created_by: context.userId,
