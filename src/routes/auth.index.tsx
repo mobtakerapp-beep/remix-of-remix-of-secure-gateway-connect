@@ -11,20 +11,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-
 import { confirmUnconfirmedEmail, resetPasswordWithCode, signUpDirect } from "@/lib/auth.functions";
 import { useI18n } from "@/lib/i18n";
 import { saveProfile } from "@/lib/subscription.functions";
+
+const REMEMBERED_EMAIL_KEY = "malakhasi_last_email";
 
 export const Route = createFileRoute("/auth/")({
   head: () => ({
     meta: [
       { title: "تسجيل الدخول — ملخصي" },
       { name: "description", content: "سجّل دخولك أو أنشئ حسابًا للوصول إلى ملخصي." },
-      { property: "og:title", content: "تسجيل الدخول — ملخصي" },
-      { property: "og:description", content: "سجّل دخولك أو أنشئ حسابًا للوصول إلى ملخصي." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AuthPage,
@@ -50,17 +47,22 @@ function AuthPage() {
   const ar = lang === "ar";
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/" });
     });
+    const savedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY);
+    if (savedEmail) setEmail(savedEmail);
   }, [navigate]);
+
+  const rememberEmail = () => {
+    const value = email.trim().toLowerCase();
+    if (value) localStorage.setItem(REMEMBERED_EMAIL_KEY, value);
+  };
 
   const toggleReset = () => {
     setShowReset((v) => !v);
-    if (!showReset) {
-      setResetCode("");
-      setResetPassword("");
-    }
+    setResetCode("");
+    setResetPassword("");
   };
 
   const resetWithCode = async (e: React.FormEvent) => {
@@ -79,18 +81,18 @@ function AuthPage() {
         if (result.code === "no_account") throw new Error(ar ? "لا يوجد حساب بهذا البريد." : "No account found with this email.");
         if (result.code === "bad_code") throw new Error(ar ? "كود التفعيل غير صحيح أو منتهي الصلاحية." : "Activation code is invalid or expired.");
         if (result.code === "weak_password") throw new Error(ar ? "كلمة المرور ضعيفة. استخدم ٦ أحرف على الأقل مع أرقام ورموز." : "Password is too weak. Use at least 6 characters with numbers and symbols.");
-        if (result.code === "invalid_input") throw new Error(ar ? "بيانات غير صالحة: تحقّق من البريد الإلكتروني وكود التفعيل." : "Invalid input: check the email address and activation code.");
-        if (result.code === "server_config") throw new Error(ar ? "إعدادات الخادم ناقصة. تواصل مع الدعم." : "Server configuration is incomplete. Contact support.");
+        if (result.code === "invalid_input") throw new Error(ar ? "بيانات غير صالحة." : "Invalid input.");
         throw new Error(ar ? "تعذّر إعادة تعيين كلمة المرور." : "Could not reset password.");
       }
+      rememberEmail();
       toast.success(ar ? "تم تغيير كلمة المرور. يمكنك الآن تسجيل الدخول." : "Password changed. You can now sign in.");
       setShowReset(false);
       setResetCode("");
       setResetPassword("");
+      setPassword("");
       setMode("login");
     } catch (error) {
-      const raw = error instanceof Error ? error.message : "";
-      toast.error(raw || (ar ? "تعذّر إعادة تعيين كلمة المرور" : "Could not reset password"));
+      toast.error(error instanceof Error ? error.message : (ar ? "تعذّر إعادة تعيين كلمة المرور" : "Could not reset password"));
     } finally {
       setResetting(false);
     }
@@ -98,21 +100,22 @@ function AuthPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+    const targetEmail = email.trim().toLowerCase();
+    if (!targetEmail || !password.trim()) return;
     setLoading(true);
     try {
       if (mode === "signup") {
         let created: Awaited<ReturnType<typeof createAccount>>;
         try {
           created = await createAccount({
-            data: { email: email.trim(), password, teacherName: teacherName.trim(), school: school.trim() },
+            data: { email: targetEmail, password, teacherName: teacherName.trim(), school: school.trim() },
           });
         } catch {
           created = { ok: false, code: "failed", message: "" };
         }
         if (!created.ok && created.code === "failed") {
           const { error: signUpError } = await supabase.auth.signUp({
-            email: email.trim(),
+            email: targetEmail,
             password,
             options: { emailRedirectTo: `${window.location.origin}/`, data: { teacher_name: teacherName.trim(), school: school.trim() } },
           });
@@ -120,35 +123,33 @@ function AuthPage() {
         } else if (!created.ok) {
           throw new Error(created.message);
         }
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error } = await supabase.auth.signInWithPassword({ email: targetEmail, password });
         if (error) throw error;
-        try {
-          await saveProfileFn({ data: { teacherName: teacherName.trim(), school: school.trim() } });
-        } catch {
-          // non-blocking
-        }
+        await saveProfileFn({ data: { teacherName: teacherName.trim(), school: school.trim() } }).catch(() => undefined);
+        rememberEmail();
         toast.success(ar ? "تم إنشاء الحساب وتسجيل الدخول!" : "Account created — you're signed in!");
         navigate({ to: "/" });
       } else {
-        let { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        let { error } = await supabase.auth.signInWithPassword({ email: targetEmail, password });
         if (error && /confirm|unconfirm/i.test(error.message)) {
           try {
-            await confirmUnconfirmed({ data: { email: email.trim() } });
-            ({ error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
+            await confirmUnconfirmed({ data: { email: targetEmail } });
+            ({ error } = await supabase.auth.signInWithPassword({ email: targetEmail, password }));
           } catch (confirmError) {
             console.error("Failed to confirm email:", confirmError);
           }
         }
         if (error) throw error;
+        rememberEmail();
         toast.success(ar ? "تم تسجيل الدخول!" : "Signed in!");
         navigate({ to: "/" });
       }
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       const friendly = /invalid login credentials/i.test(raw)
-        ? ar ? "البريد أو كلمة المرور غير صحيحة." : "Invalid email or password."
+        ? (ar ? "البريد أو كلمة المرور غير صحيحة." : "Invalid email or password.")
         : /weak|pwned/i.test(raw)
-          ? ar ? "كلمة المرور ضعيفة أو مسرّبة، اختر كلمة مرور أقوى." : "Password is too weak or leaked."
+          ? (ar ? "كلمة المرور ضعيفة أو مسرّبة، اختر كلمة مرور أقوى." : "Password is too weak or leaked.")
           : raw || (ar ? "تعذّر إتمام العملية" : "Authentication failed");
       toast.error(friendly);
     } finally {
@@ -160,9 +161,8 @@ function AuthPage() {
     <main className="blob-bg flex min-h-screen items-center justify-center bg-background p-4">
       <Toaster position="top-center" />
       <Card className="w-full max-w-md rounded-3xl border-border/70 p-6 shadow-[var(--shadow-lift)] sm:p-8" dir={ar ? "rtl" : "ltr"}>
-        <Link to="/" aria-label={ar ? "الرجوع للصفحة الرئيسية" : "Back to home"} title={ar ? "الرجوع للصفحة الرئيسية" : "Back to home"} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-          <Home className="size-3.5" />
-          {ar ? "الرئيسية" : "Home"}
+        <Link to="/" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground">
+          <Home className="size-3.5" /> {ar ? "الرئيسية" : "Home"}
         </Link>
         <div className="text-center">
           <img src={partyImg} alt="" className="mx-auto size-16 animate-bounce-slow" />
@@ -240,7 +240,7 @@ function AuthPage() {
         </form>
 
         <div className="mt-5 text-center text-xs text-muted-foreground">
-          <button type="button" className="text-primary hover:underline" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setShowReset(false); setResetCode(""); setResetPassword(""); }}>
+          <button type="button" className="text-primary hover:underline" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setShowReset(false); setPassword(""); }}>
             {mode === "login" ? (ar ? "ليس لديك حساب؟ إنشاء حساب" : "Don't have an account? Create one") : (ar ? "لديك حساب بالفعل؟ تسجيل الدخول" : "Already have an account? Sign in")}
           </button>
         </div>
