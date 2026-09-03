@@ -1,4 +1,6 @@
 import { parseYoutubeId } from "./youtube-url";
+import { getRuntimeSecret } from "./runtime-env.server";
+import { DEFAULT_GEMINI_MODEL, geminiGenerateUrl } from "./ai-models";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
@@ -134,12 +136,76 @@ async function fetchTranscriptFromPlayer(
       // Try the next caption track.
     }
   }
-
-  // Some current YouTube pages expose a transcript endpoint through the
-  // player response rather than a directly downloadable caption track.
-  // Re-querying the current player with its own dynamically supplied key keeps
-  // this path aligned with the page instead of relying on an old hard-coded key.
   return null;
+}
+
+/**
+ * Gemini can receive a public YouTube URL directly. This is the primary
+ * fallback for videos whose caption endpoint is unavailable, so the server
+ * does not need to download a signed googlevideo audio stream itself.
+ */
+export async function fetchYoutubeTranscriptViaGemini(
+  input: string,
+): Promise<{ videoId: string; title: string; text: string }> {
+  const videoId = parseYoutubeId(input);
+  if (!videoId) throw new Error("youtube_invalid_url");
+
+  const apiKey = getRuntimeSecret("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("youtube_gemini_unavailable");
+
+  const model = getRuntimeSecret("GEMINI_MODEL") ?? DEFAULT_GEMINI_MODEL;
+  const url = geminiGenerateUrl(model);
+  const prompt = [
+    "Transcribe the spoken audio of this public YouTube video accurately.",
+    "Return ONLY the transcript text, with no summary, no commentary, no markdown, and no timestamps.",
+    "Preserve the language actually spoken in the video.",
+  ].join(" ");
+
+  const response = await fetch(`${url}?key=${encodeURIComponent(apiKey)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": UA,
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            {
+              file_data: {
+                file_uri: `https://www.youtube.com/watch?v=${videoId}`,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: { temperature: 0 },
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    console.error("[youtube] Gemini YouTube input failed", {
+      status: response.status,
+      body: body.slice(0, 500),
+      videoId,
+    });
+    throw new Error("youtube_gemini_failed");
+  }
+
+  const json = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = (json.candidates?.[0]?.content?.parts ?? [])
+    .map((part) => part.text ?? "")
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (text.length < 40) throw new Error("youtube_gemini_empty");
+
+  return { videoId, title: `YouTube ${videoId}`, text };
 }
 
 export async function fetchYoutubeTranscriptRobust(
@@ -167,8 +233,6 @@ export async function fetchYoutubeTranscriptRobust(
     if (result) return { videoId, ...result };
   }
 
-  // Fresh WEB player request. The API key is read from the current YouTube
-  // page, not hard-coded, because YouTube rotates it periodically.
   if (key) {
     try {
       const playerResponse = await fetch(
@@ -199,9 +263,9 @@ export async function fetchYoutubeTranscriptRobust(
         if (result) return { videoId, ...result };
       }
     } catch {
-      // Fall through to the existing implementation.
+      // Fall through to Gemini.
     }
   }
 
-  throw new Error("youtube_no_captions");
+  return fetchYoutubeTranscriptViaGemini(input);
 }
