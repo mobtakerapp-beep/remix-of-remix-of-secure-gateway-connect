@@ -85,12 +85,12 @@ export const redeemCode = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
-    const code = data.code.trim().toUpperCase();
+    const code = data.code.trim();
 
     const { data: row } = await supabaseAdmin
       .from("activation_codes")
       .select("*")
-      .eq("code", code)
+      .ilike("code", code)
       .maybeSingle();
 
     if (!row || !row.active) return { ok: false as const, reason: "invalid" };
@@ -126,11 +126,8 @@ export const redeemCode = createServerFn({ method: "POST" })
             ? { used_count: (row.used_count ?? 0) + 1, expires_at: codeExpiry.toISOString() }
             : { used_count: (row.used_count ?? 0) + 1 },
         )
-
         .eq("id", row.id);
-
     }
-
 
     const expires = new Date();
     expires.setDate(expires.getDate() + (row.duration_days ?? 30));
@@ -285,8 +282,6 @@ export const adminListRedemptions = createServerFn({ method: "GET" })
       const codeRow = Array.isArray(r.activation_codes)
         ? r.activation_codes[0]
         : r.activation_codes;
-      // The validity window starts at first use (redemption time). Fall back to
-      // redeemedAt + duration when the subscription row is missing.
       let expiresAt = expiryById.get(r.user_id) ?? null;
       if (!expiresAt) {
         const fallback = new Date(r.created_at);
@@ -321,11 +316,6 @@ export const adminSetCodeActive = createServerFn({ method: "POST" })
 
 export type OwnerCredentials = { email: string; serial: string };
 
-/**
- * Fixed owner credentials, resolved from the database (activation_codes) so the
- * email + serial are always available and never depend on local state that is
- * lost when the page changes.
- */
 export const getOwnerCredentials = createServerFn({ method: "GET" }).handler(
   async (): Promise<OwnerCredentials> => {
     const fallback: OwnerCredentials = { email: "UUxz272@gmail.com", serial: "UUXZ@272" };
