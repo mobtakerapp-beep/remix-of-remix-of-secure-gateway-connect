@@ -71,13 +71,13 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     const isPaid = status.plan !== "free";
     const isOwner = status.generationsLimit >= 999999;
 
-    // هدية الـ8 أيام: كل المميزات المسموح بها في الاشتراك، لكن الفيديو مقفول.
-    // نحددها من آخر كود تم استخدامه بدل الاعتماد على مدة الاشتراك الحالية.
-    let isEightDayGift = false;
+    // Gift codes are marked in activation_codes.note with the [GIFT] prefix.
+    // Gifts allow text + images only, regardless of their duration.
+    let isGift = false;
     if (!isOwner) {
       const { data: redemption } = await context.supabase
         .from("code_redemptions")
-        .select("activation_codes(duration_days)")
+        .select("activation_codes(note)")
         .eq("user_id", context.userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -85,12 +85,13 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
       const activationCode = Array.isArray(redemption?.activation_codes)
         ? redemption?.activation_codes[0]
         : redemption?.activation_codes;
-      isEightDayGift = Number((activationCode as { duration_days?: number } | null)?.duration_days) === 8;
+      const note = (activationCode as { note?: string | null } | null)?.note ?? "";
+      isGift = note.trim().toUpperCase().startsWith("[GIFT]");
     }
 
     if (data.mode === "youtube") {
-      if (!isPremium || isEightDayGift) {
-        throw new Error("الفيديو متاح في الاشتراك المميز فقط، وهدية الـ8 أيام لا تشمل الفيديو");
+      if (!isPremium || isGift) {
+        throw new Error("الفيديو متاح في الاشتراك المميز فقط، وأكواد الهدايا لا تشمل الفيديو");
       }
       const url = data.youtubeUrl ?? "";
       const { parseYoutubeId } = await import("./youtube-url");
@@ -102,6 +103,7 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     }
 
     if (data.mode === "pdf") {
+      if (isGift) throw new Error("أكواد الهدايا لا تشمل ملفات PDF");
       const maxPages = isPremium ? 3 : isPaid ? 2 : 0;
       if (maxPages === 0) throw new Error("ملف PDF متاح في الاشتراك العادي أو المميز فقط");
       const pages = data.fileData ? countPdfPages(data.fileData) : null;
