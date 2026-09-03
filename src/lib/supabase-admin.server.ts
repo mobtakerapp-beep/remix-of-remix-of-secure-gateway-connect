@@ -37,20 +37,18 @@ function getSecretKey(): string | undefined {
   return getRuntimeSecret("SUPABASE_SERVICE_ROLE_KEY");
 }
 
-function getSupabaseUrl(): string | undefined {
+function getSupabaseUrl(): string {
+  // بيقرأ الرابط من البيئة، ولو مش موجود بياخد رابط مشروعك المباشر فوراً كأمان
   return (
     getRuntimeSecret("EXTERNAL_SUPABASE_URL") ||
-    getRuntimeSecret("SUPABASE_URL")
+    getRuntimeSecret("SUPABASE_URL") ||
+    "https://sajkxtqcaiubmtamenke.supabase.co"
   );
 }
 
 export function createSupabaseAdminClient() {
   const url = getSupabaseUrl();
   const serviceKey = getSecretKey();
-
-  if (!url) {
-    throw new Error("SUPABASE_URL is missing from environment variables");
-  }
 
   if (!serviceKey) {
     throw new Error(
