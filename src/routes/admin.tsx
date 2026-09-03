@@ -101,7 +101,7 @@ function AdminPage() {
       const selectedPlan = override?.plan ?? (kind === "gift" ? "standard" : plan);
       const giftPrefix = kind === "gift" ? "[GIFT] " : "";
       const safeCount = Math.max(1, Math.min(50, count));
-      const safeUses = kind === "gift" ? 1 : Math.max(1, Math.min(1000, maxUses));
+      const safeUses = Math.max(1, Math.min(1000, maxUses));
       const input = { count: safeCount, plan: selectedPlan, durationDays: days, maxUses: safeUses, note: `${giftPrefix}${note}`.trim() || undefined };
       const result = await createCodes({ data: input }).catch(() => createCodesClient(input));
       if (result.codes.length) {
@@ -167,9 +167,16 @@ function AdminPage() {
         <Card className="rounded-3xl p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-1.5"><Label>{ar ? "نوع الكود" : "Code type"}</Label><select value={codeKind} onChange={(e) => setCodeKind(e.target.value as "paid" | "gift")} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm"><option value="paid">{ar ? "اشتراك مدفوع" : "Paid subscription"}</option><option value="gift">{ar ? "هدية" : "Gift"}</option></select></div>
-            <div className="space-y-1.5"><Label>{ar ? "الخطة والفترة" : "Plan & period"}</Label><select value={selectedPeriod} disabled={codeKind === "gift"} onChange={(e) => choosePeriod(e.target.value)} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm"><option value="standard-monthly">{ar ? "عادي شهري — $7" : "Standard Monthly — $7"}</option><option value="standard-yearly">{ar ? "عادي سنوي — $50" : "Standard Yearly — $50"}</option><option value="premium-monthly">{ar ? "مميز شهري — $15" : "Premium Monthly — $15"}</option><option value="premium-yearly">{ar ? "مميز سنوي — $100" : "Premium Yearly — $100"}</option></select></div>
+            <div className="space-y-1.5"><Label>{ar ? "الخطة والفترة" : "Plan & period"}</Label><select value={selectedPeriod} onChange={(e) => choosePeriod(e.target.value)} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm">
+              {codeKind === "gift" ? <option value="gift">{ar ? "هدية" : "Gift"}</option> : <>
+                <option value="standard-monthly">{ar ? "عادي شهري — $7" : "Standard Monthly — $7"}</option>
+                <option value="standard-yearly">{ar ? "عادي سنوي — $50" : "Standard Yearly — $50"}</option>
+                <option value="premium-monthly">{ar ? "مميز شهري — $15" : "Premium Monthly — $15"}</option>
+                <option value="premium-yearly">{ar ? "مميز سنوي — $100" : "Premium Yearly — $100"}</option>
+              </>}
+            </select></div>
             <div className="space-y-1.5"><Label>{ar ? "المدة (يوم)" : "Duration (days)"}</Label><Input type="number" min={1} max={3650} value={codeKind === "gift" ? giftDays : durationDays} onChange={(e) => codeKind === "gift" ? setGiftDays(Number(e.target.value)) : setDurationDays(Number(e.target.value))} className="rounded-xl" /></div>
-            <div className="space-y-1.5"><Label>{ar ? "عدد الاستخدامات" : "Uses per code"}</Label><Input type="number" min={1} max={1000} disabled={codeKind === "gift"} value={codeKind === "gift" ? 1 : maxUses} onChange={(e) => setMaxUses(Number(e.target.value))} className="rounded-xl" /></div>
+            <div className="space-y-1.5"><Label>{ar ? "عدد الاستخدامات" : "Uses per code"}</Label><Input type="number" min={1} max={1000} value={maxUses} onChange={(e) => setMaxUses(Number(e.target.value))} className="rounded-xl" /></div>
             <div className="space-y-1.5"><Label>{ar ? "عدد الأكواد" : "Count"}</Label><Input type="number" min={1} max={50} value={count} onChange={(e) => setCount(Number(e.target.value))} className="rounded-xl" /></div>
           </div>
           <div className="mt-3"><Input value={note} onChange={(e) => setNote(e.target.value)} className="rounded-xl" placeholder={ar ? "ملاحظة اختيارية" : "Optional note"} /></div>
