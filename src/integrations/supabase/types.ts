@@ -109,6 +109,66 @@ export type Database = {
           },
         ]
       }
+      lesson_share_results: {
+        Row: {
+          answers: Json
+          created_at: string
+          id: string
+          score: number
+          share_token: string
+          student_name: string
+          total: number
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          score?: number
+          share_token: string
+          student_name: string
+          total?: number
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          score?: number
+          share_token?: string
+          student_name?: string
+          total?: number
+        }
+        Relationships: []
+      }
+      lesson_shares: {
+        Row: {
+          created_at: string
+          id: string
+          package: Json
+          title: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          package?: Json
+          title: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          package?: Json
+          title?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -159,6 +219,33 @@ export type Database = {
           plan?: string
           reset_at?: string
           status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_lessons: {
+        Row: {
+          created_at: string
+          id: string
+          package: Json
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          package?: Json
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          package?: Json
+          title?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
