@@ -1,9 +1,13 @@
+```ts
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getRuntimeSecret } from "./runtime-env.server";
 
 function isNewSupabaseApiKey(value: string): boolean {
-  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
+  return (
+    value.startsWith("sb_publishable_") ||
+    value.startsWith("sb_secret_")
+  );
 }
 
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
@@ -37,18 +41,20 @@ function getSecretKey(): string | undefined {
   return getRuntimeSecret("SUPABASE_SERVICE_ROLE_KEY");
 }
 
-function getSupabaseUrl(): string {
-  // بيقرأ الرابط من البيئة، ولو مش موجود بياخد رابط مشروعك المباشر فوراً كأمان
+function getSupabaseUrl(): string | undefined {
   return (
     getRuntimeSecret("EXTERNAL_SUPABASE_URL") ||
-    getRuntimeSecret("SUPABASE_URL") ||
-    "https://sajkxtqcaiubmtamenke.supabase.co"
+    getRuntimeSecret("SUPABASE_URL")
   );
 }
 
 export function createSupabaseAdminClient() {
   const url = getSupabaseUrl();
   const serviceKey = getSecretKey();
+
+  if (!url) {
+    throw new Error("SUPABASE_URL is missing from environment variables");
+  }
 
   if (!serviceKey) {
     throw new Error(
@@ -77,3 +83,4 @@ export const supabaseAdmin = new Proxy(
     },
   },
 );
+```
