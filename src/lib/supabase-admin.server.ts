@@ -1,8 +1,9 @@
 /**
  * Server-side Supabase admin client (service role).
- * Safely reads key dynamically at runtime to prevent Vite build-time stripping.
+ * Safely accesses Cloudflare Pages runtime secrets via Vinxi/H3 event context.
  */
 import { createClient } from "@supabase/supabase-js";
+import { getEvent } from "vinxi/http";
 import type { Database } from "@/integrations/supabase/types";
 
 function isNewSupabaseApiKey(value: string): boolean {
@@ -26,18 +27,30 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function getSecretKey(): string | undefined {
-  // قراءة ديناميكية تمنع Vite من مسح المتغير أو تحويله لـ undefined أثناء الـ Build
-  const dynamicEnv = process["env"];
-  return (
-    dynamicEnv?.SUPABASE_SERVICE_ROLE_KEY ||
-    (globalThis as any)?.process?.env?.SUPABASE_SERVICE_ROLE_KEY ||
-    (globalThis as any)?.__env__?.SUPABASE_SERVICE_ROLE_KEY
-  );
+  // 1. محاولة القراءة من سياق الطلب الخاص بـ Cloudflare Pages (السبب الرئيسي للحل)
+  try {
+    const event = getEvent();
+    if (event?.context) {
+      const cfEnv = (event.context as any).cloudflare?.env || (event.context as any).env;
+      if (cfEnv?.SUPABASE_SERVICE_ROLE_KEY) {
+        return cfEnv.SUPABASE_SERVICE_ROLE_KEY;
+      }
+    }
+  } catch {
+    // خارج نطاق الـ Request
+  }
+
+  // 2. محاولة القراءة من process.env (للتجربة المحلية لو موجودة)
+  if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+
+  // 3. محاولة أليفة أخيرة من globalThis في Cloudflare
+  return (globalThis as any)?.SUPABASE_SERVICE_ROLE_KEY || (globalThis as any)?.env?.SUPABASE_SERVICE_ROLE_KEY;
 }
 
-function createSupabaseAdminClient() {
+export function createSupabaseAdminClient() {
   const url = "https://sajkxtqcaiubmtamenke.supabase.co";
-  
   const serviceKey = getSecretKey();
 
   if (!serviceKey) {
@@ -50,11 +63,9 @@ function createSupabaseAdminClient() {
   });
 }
 
-let _supabaseAdmin: ReturnType<typeof createSupabaseAdminClient> | undefined;
-
 export const supabaseAdmin = new Proxy({} as ReturnType<typeof createSupabaseAdminClient>, {
   get(_, prop, receiver) {
-    if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdminClient();
-    return Reflect.get(_supabaseAdmin, prop, receiver);
+    const client = createSupabaseAdminClient();
+    return Reflect.get(client, prop, receiver);
   },
 });
