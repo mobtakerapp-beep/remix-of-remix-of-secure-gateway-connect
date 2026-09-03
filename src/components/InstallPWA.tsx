@@ -28,7 +28,11 @@ export function InstallPWA() {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
     };
-    const onInstalled = () => setInstalled(true);
+    const onInstalled = () => {
+      setInstalled(true);
+      setDeferred(null);
+      setShowHint(false);
+    };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
@@ -40,13 +44,22 @@ export function InstallPWA() {
   const handleClick = () => {
     if (deferred) {
       void deferred.prompt();
-      void deferred.userChoice.then(() => setDeferred(null));
+      void deferred.userChoice.then(({ outcome }) => {
+        setDeferred(null);
+        if (outcome === "accepted") {
+          setInstalled(true);
+          setShowHint(false);
+        }
+      });
     } else {
       setShowHint((v) => !v);
     }
   };
 
   const isDesktop = !isIos && !deferred;
+
+  // Once the app is installed, remove the install button completely.
+  if (installed) return null;
 
   return (
     <div className="relative flex flex-col items-center gap-1">
@@ -58,9 +71,7 @@ export function InstallPWA() {
         aria-label={ar ? "ثبّت التطبيق" : "Install app"}
       >
         <Download className="me-1 size-3.5" />
-        {installed
-          ? (ar ? "تم التثبيت" : "Installed")
-          : (ar ? "تثبيت" : "Install")}
+        {ar ? "تثبيت" : "Install"}
       </Button>
 
       {showHint && (
