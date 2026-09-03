@@ -108,9 +108,15 @@ export const redeemCode = createServerFn({ method: "POST" })
       console.error("[redeemCode] DB Error searching code:", fetchError);
     }
 
-    if (!row || row.active === false) {
-      console.warn("[redeemCode] Code not found or disabled. Row:", row);
-      return { ok: false as const, reason: "invalid" };
+if (fetchError) {
+      console.error("[redeemCode] DB Error:", fetchError);
+      return { ok: false as const, reason: `خطأ في الداتا بيز: ${fetchError.message}` };
+    }
+    if (!row) {
+      return { ok: false as const, reason: "الكود مش ملقوط في الجدول أصلاً" };
+    }
+    if (row.active === false) {
+      return { ok: false as const, reason: "الكود موجود بس موقوف active=false" };
     }
 
     const neverUsed = (row.used_count ?? 0) === 0;
