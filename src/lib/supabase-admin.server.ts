@@ -1,6 +1,6 @@
 /**
  * Server-side Supabase admin client (service role).
- * Hardcoded configuration to bypass environment variable deletion issues on Cloudflare.
+ * Safely reads key from Cloudflare environment variables.
  */
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -26,11 +26,14 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  // القيم ثابتة ومباشرة لمنع أي خطأ بسبب اختفاء متغيرات البيئة
   const url = "https://sajkxtqcaiubmtamenke.supabase.co";
   
-  // حطي هنا مفتاح الـ service_role السري بتاعك بين القوسين دول
-  const serviceKey = "sb_secret_0nyb-K1P3DQ8s7U4rpnpVg_dMgR_VY_";
+  // بيقرأ اسم المتغير من السيرفر فقط بدون كتابة المفتاح صريح
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!serviceKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing from environment variables");
+  }
 
   return createClient<Database>(url, serviceKey, {
     global: { fetch: createSupabaseFetch(serviceKey) },
