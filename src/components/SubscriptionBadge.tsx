@@ -9,11 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import {
-  getMySubscription,
-  saveProfile,
-  type SubscriptionStatus,
-} from "@/lib/subscription.functions";
+import { getMySubscription, saveProfile, type SubscriptionStatus } from "@/lib/subscription.functions";
 import { isAdminClient } from "@/lib/admin-client";
 import { setIsPremium } from "@/lib/premium-flag";
 
@@ -69,49 +65,29 @@ export function SubscriptionBadge({ onLimitReached }: { onLimitReached?: () => v
     }
   };
 
-  // Show the header actions for any signed-in user, even if the
-  // subscription status failed to load.
   if (!signedIn) return null;
 
   const isFree = !status || status.plan === "free";
+  const planLabel = status?.plan === "premium" ? (ar ? "مميز" : "Premium") : status?.plan === "standard" ? (ar ? "عادي" : "Standard") : (ar ? "مجاني" : "Free");
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div
-        className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${
-          isFree
-            ? "bg-secondary text-secondary-foreground"
-            : "gradient-warm text-primary-foreground"
-        }`}
-      >
+      <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${isFree ? "bg-secondary text-secondary-foreground" : "gradient-warm text-primary-foreground"}`}>
         {isFree ? <Zap className="size-3.5" /> : <Crown className="size-3.5" />}
         {isFree
           ? status
-            ? ar
-              ? `مجاني — بقيت ${status.remainingToday} محاولة اليوم`
-              : `Free — ${status.remainingToday} left today`
-            : ar
-              ? "حسابي"
-              : "My account"
+            ? ar ? `مجاني — باقي ${status.remainingToday} محاولة` : `Free — ${status.remainingToday} left`
+            : ar ? "حسابي" : "My account"
           : ar
-            ? "اشتراك مميز — غير محدود"
-            : "Premium — unlimited"}
+            ? `اشتراك ${planLabel} — ${status.remainingToday} دروس متبقية اليوم`
+            : `${planLabel} — ${status.remainingToday} lessons left today`}
       </div>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        className="rounded-full text-xs"
-        onClick={() => setEditing(!editing)}
-      >
+      <Button variant="ghost" size="sm" className="rounded-full text-xs" onClick={() => setEditing(!editing)}>
         <Sparkles className="me-1 size-3.5" /> {ar ? "بياناتي" : "My profile"}
       </Button>
 
-      <Button
-        asChild
-        size="sm"
-        className="rounded-full gradient-warm text-xs text-primary-foreground"
-      >
+      <Button asChild size="sm" className="rounded-full gradient-warm text-xs text-primary-foreground">
         <Link to="/subscribe">
           <Crown className="me-1 size-3.5" />
           {isFree ? (ar ? "اشترك الآن" : "Subscribe") : ar ? "إدارة الاشتراك" : "Manage plan"}
@@ -119,25 +95,16 @@ export function SubscriptionBadge({ onLimitReached }: { onLimitReached?: () => v
       </Button>
 
       <Button asChild variant="outline" size="sm" className="rounded-full text-xs">
-        <Link to="/my-lessons">
-          <BookOpen className="me-1 size-3.5" /> {ar ? "دروسي المحفوظة" : "My lessons"}
-        </Link>
+        <Link to="/my-lessons"><BookOpen className="me-1 size-3.5" /> {ar ? "دروسي المحفوظة" : "My lessons"}</Link>
       </Button>
 
       {isAdmin && (
         <Button asChild variant="outline" size="sm" className="rounded-full text-xs">
-          <Link to="/admin">
-            <Shield className="me-1 size-3.5" /> {ar ? "لوحة التحكم" : "Admin"}
-          </Link>
+          <Link to="/admin"><Shield className="me-1 size-3.5" /> {ar ? "لوحة التحكم" : "Admin"}</Link>
         </Button>
       )}
 
-      <Button
-        variant="ghost"
-        size="sm"
-        className="rounded-full text-xs text-muted-foreground"
-        onClick={() => void logout()}
-      >
+      <Button variant="ghost" size="sm" className="rounded-full text-xs text-muted-foreground" onClick={() => void logout()}>
         <LogOut className="me-1 size-3.5" /> {ar ? "خروج" : "Sign out"}
       </Button>
 
@@ -146,55 +113,19 @@ export function SubscriptionBadge({ onLimitReached }: { onLimitReached?: () => v
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="sub-teacher">{t.teacherName}</Label>
-              <Input
-                id="sub-teacher"
-                value={teacherName}
-                onChange={(e) => setTeacherName(e.target.value)}
-                placeholder={t.teacherPlaceholder}
-                className="rounded-xl"
-              />
+              <Input id="sub-teacher" value={teacherName} onChange={(e) => setTeacherName(e.target.value)} placeholder={t.teacherPlaceholder} className="rounded-xl" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sub-school">{ar ? "المدرسة" : "School"}</Label>
-              <Input
-                id="sub-school"
-                value={school}
-                onChange={(e) => setSchool(e.target.value)}
-                placeholder={ar ? "اسم المدرسة" : "School name"}
-                className="rounded-xl"
-              />
+              <Input id="sub-school" value={school} onChange={(e) => setSchool(e.target.value)} placeholder={ar ? "اسم المدرسة" : "School name"} className="rounded-xl" />
             </div>
           </div>
           <div className="mt-3 flex gap-2">
-            <Button
-              size="sm"
-              className="rounded-full"
-              onClick={() => void save()}
-              disabled={saving}
-            >
-              {saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ" : "Save"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => setEditing(false)}
-            >
-              {ar ? "إلغاء" : "Cancel"}
-            </Button>
-            <Button asChild size="sm" variant="outline" className="rounded-full">
-              <Link to="/">
-                <Home className="me-1 size-3.5" /> {ar ? "الرئيسية" : "Home"}
-              </Link>
-            </Button>
+            <Button size="sm" className="rounded-full" onClick={() => void save()} disabled={saving}>{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : ar ? "حفظ" : "Save"}</Button>
+            <Button size="sm" variant="outline" className="rounded-full" onClick={() => setEditing(false)}>{ar ? "إلغاء" : "Cancel"}</Button>
+            <Button asChild size="sm" variant="outline" className="rounded-full"><Link to="/"><Home className="me-1 size-3.5" /> {ar ? "الرئيسية" : "Home"}</Link></Button>
           </div>
-          {isFree && (
-            <p className="mt-3 rounded-xl bg-amber/10 p-2 text-xs text-amber-foreground">
-              {ar
-                ? "للاشتراك في الخطة المميزة (وصول غير محدود)، استخدم كود التفعيل في صفحة الاشتراك."
-                : "To upgrade to Premium (unlimited access), redeem an activation code on the subscribe page."}
-            </p>
-          )}
+          {isFree && <p className="mt-3 rounded-xl bg-amber/10 p-2 text-xs text-amber-foreground">{ar ? "التجربة المجانية مرة واحدة فقط. اختاري العادي أو المميز من صفحة الاشتراك." : "The free trial is one generation only. Choose Standard or Premium on the subscribe page."}</p>}
         </div>
       )}
     </div>
