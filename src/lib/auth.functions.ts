@@ -24,7 +24,7 @@ export const signUpDirect = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<SignUpResult> => {
     let supabaseAdmin;
     try {
-      ({ supabaseAdmin } = await import("@/integrations/supabase/client.server"));
+      ({ supabaseAdmin } = await import("@/lib/supabase-admin.server"));
     } catch (e) {
       console.error("[signUpDirect] admin client unavailable", e);
       return {
@@ -139,7 +139,7 @@ export const resetPasswordWithCode = createServerFn({ method: "POST" })
 
     let supabaseAdmin;
     try {
-      ({ supabaseAdmin } = await import("@/integrations/supabase/client.server"));
+      ({ supabaseAdmin } = await import("@/lib/supabase-admin.server"));
     } catch (e) {
       console.error("[resetPasswordWithCode] admin client unavailable", e);
       return { ok: false, code: isMissingAdminConfig(e) ? "server_config" : "failed" };
@@ -279,7 +279,7 @@ export const confirmUnconfirmedEmail = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
     let supabaseAdmin;
     try {
-      ({ supabaseAdmin } = await import("@/integrations/supabase/client.server"));
+      ({ supabaseAdmin } = await import("@/lib/supabase-admin.server"));
     } catch (e) {
       console.error("[confirmUnconfirmedEmail] admin client unavailable", e);
       return { ok: false };

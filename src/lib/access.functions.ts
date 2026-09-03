@@ -47,7 +47,7 @@ async function hasAdminRole(supabase: unknown, userId: string) {
     // fall through to the service client
   }
   try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
     const { data } = await supabaseAdmin.rpc("has_role", {
       _user_id: userId,
       _role: "admin",
@@ -84,7 +84,7 @@ export const redeemCode = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
     const code = data.code.trim().toUpperCase();
 
     const { data: row } = await supabaseAdmin
@@ -163,7 +163,7 @@ export const adminListCodes = createServerFn({ method: "GET" })
   .middleware([requireAppAuth])
   .handler(async ({ context }): Promise<CodeRow[]> => {
     await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
     const { data } = await supabaseAdmin
       .from("activation_codes")
       .select("*")
@@ -198,7 +198,7 @@ export const adminCreateCodes = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     const gen = () => {
       const bytes = new Uint8Array(12);
@@ -238,7 +238,7 @@ export const adminListRedemptions = createServerFn({ method: "GET" })
   .middleware([requireAppAuth])
   .handler(async ({ context }): Promise<RedemptionRow[]> => {
     await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
 
     const { data: redemptions } = await supabaseAdmin
       .from("code_redemptions")
@@ -314,7 +314,7 @@ export const adminSetCodeActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
     await supabaseAdmin.from("activation_codes").update({ active: data.active }).eq("id", data.id);
     return { ok: true };
   });
@@ -330,7 +330,7 @@ export const getOwnerCredentials = createServerFn({ method: "GET" }).handler(
   async (): Promise<OwnerCredentials> => {
     const fallback: OwnerCredentials = { email: "UUxz272@gmail.com", serial: "UUXZ@272" };
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
       const { data } = await supabaseAdmin
         .from("activation_codes")
         .select("code")
