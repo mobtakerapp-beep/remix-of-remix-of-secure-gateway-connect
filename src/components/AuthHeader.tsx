@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { SubscriptionBadge } from "./SubscriptionBadge";
+import { SubscriptionStatusCard } from "./SubscriptionStatusCard";
 
 export function AuthHeader() {
   const { t, lang } = useI18n();
@@ -54,7 +55,7 @@ export function AuthHeader() {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2">
       <Button asChild variant="outline" size="sm" className="rounded-full text-xs">
         <Link to="/results">
           <Trophy className="me-1 size-3.5" />
@@ -62,6 +63,7 @@ export function AuthHeader() {
         </Link>
       </Button>
       <SubscriptionBadge />
+      <SubscriptionStatusCard />
     </div>
   );
 }
