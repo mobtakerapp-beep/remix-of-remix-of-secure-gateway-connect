@@ -29,6 +29,8 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+const SUPABASE_PROJECT_URL = 'https://sajkxtqcaiubmtamenke.supabase.co';
+
 function createSupabaseAdminClient() {
   const SUPABASE_URL = process.env['SUPABASE_URL'];
   const SUPABASE_SERVICE_ROLE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'];
