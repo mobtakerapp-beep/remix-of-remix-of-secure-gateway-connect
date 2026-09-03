@@ -85,7 +85,7 @@ export const redeemCode = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
-    
+
     // تنظيف الكود وتنسيقه بالشكل المطلوب (4 حروف - 4 حروف - 4 حروف)
     const rawInput = data.code.trim();
     const cleanChars = rawInput.replace(/[^a-zA-Z0-9]/g, "");
@@ -106,10 +106,6 @@ export const redeemCode = createServerFn({ method: "POST" })
 
     if (fetchError) {
       console.error("[redeemCode] DB Error searching code:", fetchError);
-    }
-
-if (fetchError) {
-      console.error("[redeemCode] DB Error:", fetchError);
       return { ok: false as const, reason: `خطأ في الداتا بيز: ${fetchError.message}` };
     }
     if (!row) {
@@ -352,22 +348,3 @@ export const adminSetCodeActive = createServerFn({ method: "POST" })
     await supabaseAdmin.from("activation_codes").update({ active: data.active }).eq("id", data.id);
     return { ok: true };
   });
-
-export type OwnerCredentials = { email: string; serial: string };
-
-export const getOwnerCredentials = createServerFn({ method: "GET" }).handler(
-  async (): Promise<OwnerCredentials> => {
-    const fallback: OwnerCredentials = { email: "UUxz272@gmail.com", serial: "UUXZ@272" };
-    try {
-      const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
-      const { data } = await supabaseAdmin
-        .from("activation_codes")
-        .select("code")
-        .eq("code", fallback.serial)
-        .maybeSingle();
-      return { email: fallback.email, serial: data?.code ?? fallback.serial };
-    } catch {
-      return fallback;
-    }
-  },
-);
