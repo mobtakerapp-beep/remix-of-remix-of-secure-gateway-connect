@@ -34,7 +34,7 @@ export const createShare = createServerFn({ method: "POST" })
 export const getSharedLesson = createServerFn({ method: "GET" })
   .validator((input: unknown) => z.object({ token: z.string().min(6).max(64) }).parse(input))
   .handler(async ({ data }): Promise<{ title: string; package: LessonPackage }> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
     const { data: row, error } = await supabaseAdmin
       .from("lesson_shares" as never)
       .select("title, package")
