@@ -24,16 +24,22 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
       });
     }
 
+    const authorizationHeader = headers.get("Authorization");
+
     if (
       isNewSupabaseApiKey(supabaseKey) &&
-      headers.get("Authorization") === `Bearer ${supabaseKey}`
+      authorizationHeader &&
+      authorizationHeader === "Bearer " + supabaseKey
     ) {
       headers.delete("Authorization");
     }
 
     headers.set("apikey", supabaseKey);
 
-    return fetch(input, { ...init, headers });
+    return fetch(input, {
+      ...init,
+      headers,
+    });
   };
 }
 
