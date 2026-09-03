@@ -87,11 +87,15 @@ export const redeemCode = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
     const code = data.code.trim();
 
-    const { data: row } = await supabaseAdmin
+    console.log("[redeemCode] Attempting to redeem code:", code, "for user:", context.userId);
+
+    const { data: row, error: fetchError } = await supabaseAdmin
       .from("activation_codes")
       .select("*")
       .ilike("code", code)
       .maybeSingle();
+
+    console.log("[redeemCode] Query result:", { row, fetchError });
 
     if (!row || !row.active) return { ok: false as const, reason: "invalid" };
 
