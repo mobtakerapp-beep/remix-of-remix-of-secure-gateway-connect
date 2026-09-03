@@ -31,7 +31,6 @@ type UserScopedClient = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
 };
 
-/** Checks the admin role using the caller's own session (no service key needed). */
 async function hasAdminRole(supabase: unknown, userId: string) {
   try {
     const client = supabase as UserScopedClient | undefined;
@@ -66,54 +65,33 @@ async function assertAdmin(userId: string, email?: unknown, supabase?: unknown) 
 export const amIAdmin = createServerFn({ method: "GET" })
   .middleware([requireAppAuth])
   .handler(async ({ context }) => {
-    if (isConfiguredAdminEmail(getClaimEmail(context.claims))) {
-      return { isAdmin: true };
-    }
+    if (isConfiguredAdminEmail(getClaimEmail(context.claims))) return { isAdmin: true };
     return { isAdmin: await hasAdminRole(context.supabase, context.userId) };
   });
 
-/** Redeem an activation code — binds the subscription to the signed-in account. */
 export const redeemCode = createServerFn({ method: "POST" })
   .middleware([requireAppAuth])
   .validator((input: unknown) =>
-    z
-      .object({
-        code: z.string().min(4).max(64),
-        device: z.string().max(200).optional(),
-      })
-      .parse(input),
+    z.object({ code: z.string().min(4).max(64), device: z.string().max(200).optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
-
-    // تنظيف الكود وتنسيقه بالشكل المطلوب (4 حروف - 4 حروف - 4 حروف)
     const rawInput = data.code.trim();
     const cleanChars = rawInput.replace(/[^a-zA-Z0-9]/g, "");
     let formattedCode = rawInput;
-
     if (cleanChars.length === 12) {
       formattedCode = `${cleanChars.slice(0, 4)}-${cleanChars.slice(4, 8)}-${cleanChars.slice(8, 12)}`;
     }
 
-    console.log("[redeemCode] Input:", rawInput, "-> Searching DB for:", formattedCode, "User:", context.userId);
-
-    // البحث مع تجاهل الكابتل والاسمول
     const { data: row, error: fetchError } = await supabaseAdmin
       .from("activation_codes")
       .select("*")
       .ilike("code", formattedCode)
       .maybeSingle();
 
-    if (fetchError) {
-      console.error("[redeemCode] DB Error searching code:", fetchError);
-      return { ok: false as const, reason: `خطأ في الداتا بيز: ${fetchError.message}` };
-    }
-    if (!row) {
-      return { ok: false as const, reason: "الكود مش ملقوط في الجدول أصلاً" };
-    }
-    if (row.active === false) {
-      return { ok: false as const, reason: "الكود موجود بس موقوف active=false" };
-    }
+    if (fetchError) return { ok: false as const, reason: `خطأ في الداتا بيز: ${fetchError.message}` };
+    if (!row) return { ok: false as const, reason: "الكود مش ملقوط في الجدول أصلاً" };
+    if (row.active === false) return { ok: false as const, reason: "الكود موجود بس موقوف active=false" };
 
     const neverUsed = (row.used_count ?? 0) === 0;
     if (!neverUsed && row.expires_at && new Date(row.expires_at) < new Date()) {
@@ -127,26 +105,16 @@ export const redeemCode = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
 
-    if (!mine && (row.used_count ?? 0) >= row.max_uses) {
-      return { ok: false as const, reason: "used_up" };
-    }
+    if (!mine && (row.used_count ?? 0) >= row.max_uses) return { ok: false as const, reason: "used_up" };
 
     if (!mine) {
       const codeExpiry = new Date();
       codeExpiry.setDate(codeExpiry.getDate() + (row.duration_days ?? 30));
-
-      const { error: insertRedeemError } = await supabaseAdmin
-        .from("code_redemptions")
-        .insert({
-          code_id: row.id,
-          user_id: context.userId,
-          device_fingerprint: data.device ?? null,
-        });
-
-      if (insertRedeemError) {
-        console.error("[redeemCode] Error inserting redemption:", insertRedeemError);
-      }
-
+      await supabaseAdmin.from("code_redemptions").insert({
+        code_id: row.id,
+        user_id: context.userId,
+        device_fingerprint: data.device ?? null,
+      });
       await supabaseAdmin
         .from("activation_codes")
         .update(
@@ -159,36 +127,28 @@ export const redeemCode = createServerFn({ method: "POST" })
 
     const expires = new Date();
     expires.setDate(expires.getDate() + (row.duration_days ?? 30));
-
-    const { data: existing } = await supabaseAdmin
-      .from("subscriptions")
-      .select("id")
-      .eq("user_id", context.userId)
-      .maybeSingle();
-
+    const normalizedPlan = row.plan === "standard" || row.plan === "premium" ? row.plan : "premium";
     const payload = {
       user_id: context.userId,
-      plan: row.plan,
+      plan: normalizedPlan,
       status: "active",
       expires_at: expires.toISOString(),
       generations_used: 0,
       reset_at: new Date().toISOString(),
     };
 
+    const { data: existing } = await supabaseAdmin
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
     if (existing) {
-      const { error: updateSubErr } = await supabaseAdmin
-        .from("subscriptions")
-        .update(payload)
-        .eq("user_id", context.userId);
-      if (updateSubErr) console.error("[redeemCode] Subscription update error:", updateSubErr);
+      await supabaseAdmin.from("subscriptions").update(payload).eq("user_id", context.userId);
     } else {
-      const { error: insertSubErr } = await supabaseAdmin
-        .from("subscriptions")
-        .insert(payload);
-      if (insertSubErr) console.error("[redeemCode] Subscription insert error:", insertSubErr);
+      await supabaseAdmin.from("subscriptions").insert(payload);
     }
 
-    return { ok: true as const, plan: row.plan, expiresAt: expires.toISOString() };
+    return { ok: true as const, plan: normalizedPlan, expiresAt: expires.toISOString() };
   });
 
 export const adminListCodes = createServerFn({ method: "GET" })
@@ -196,11 +156,7 @@ export const adminListCodes = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<CodeRow[]> => {
     await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
-    const { data } = await supabaseAdmin
-      .from("activation_codes")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const { data } = await supabaseAdmin.from("activation_codes").select("*").order("created_at", { ascending: false }).limit(200);
     return (data ?? []).map((r) => ({
       id: r.id,
       code: r.code,
@@ -217,16 +173,14 @@ export const adminListCodes = createServerFn({ method: "GET" })
 export const adminCreateCodes = createServerFn({ method: "POST" })
   .middleware([requireAppAuth])
   .validator((input: unknown) =>
-    z
-      .object({
-        count: z.number().int().min(1).max(50),
-        plan: z.enum(["monthly", "yearly"]),
-        durationDays: z.number().int().min(1).max(3650),
-        maxUses: z.number().int().min(1).max(1000),
-        note: z.string().max(200).optional(),
-        notes: z.array(z.string().max(200)).max(50).optional(),
-      })
-      .parse(input),
+    z.object({
+      count: z.number().int().min(1).max(50),
+      plan: z.enum(["standard", "premium", "monthly", "yearly"]),
+      durationDays: z.number().int().min(1).max(3650),
+      maxUses: z.number().int().min(1).max(1000),
+      note: z.string().max(200).optional(),
+      notes: z.array(z.string().max(200)).max(50).optional(),
+    }).parse(input),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
@@ -238,18 +192,16 @@ export const adminCreateCodes = createServerFn({ method: "POST" })
       const raw = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
       return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
     };
+    const normalizedPlan = data.plan === "standard" || data.plan === "monthly" ? "standard" : "premium";
     const rows = Array.from({ length: data.count }, (_unused, i) => ({
       code: gen(),
-      plan: data.plan,
+      plan: normalizedPlan,
       duration_days: data.durationDays,
       max_uses: data.maxUses,
       note: data.notes?.[i]?.trim() || data.note?.trim() || null,
       created_by: context.userId,
     }));
-    const { data: inserted } = await supabaseAdmin
-      .from("activation_codes")
-      .insert(rows)
-      .select("code");
+    const { data: inserted } = await supabaseAdmin.from("activation_codes").insert(rows).select("code");
     return { codes: (inserted ?? []).map((r) => r.code) };
   });
 
@@ -265,36 +217,26 @@ export type RedemptionRow = {
   subscriptionExpiresAt: string | null;
 };
 
-/** Admin: list code redemptions with the subscriber's email and current expiry. */
 export const adminListRedemptions = createServerFn({ method: "GET" })
   .middleware([requireAppAuth])
   .handler(async ({ context }): Promise<RedemptionRow[]> => {
     await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
-
     const { data: redemptions } = await supabaseAdmin
       .from("code_redemptions")
-      .select(
-        "id, user_id, device_fingerprint, created_at, activation_codes(code, plan, note, duration_days)",
-      )
+      .select("id, user_id, device_fingerprint, created_at, activation_codes(code, plan, note, duration_days)")
       .order("created_at", { ascending: false })
       .limit(300);
 
     const rows = redemptions ?? [];
     const userIds = [...new Set(rows.map((r) => r.user_id))];
-
     const emailById = new Map<string, string>();
     if (userIds.length > 0) {
       try {
         for (let page = 1; page <= 10; page++) {
-          const { data: usersPage, error } = await supabaseAdmin.auth.admin.listUsers({
-            page,
-            perPage: 1000,
-          });
+          const { data: usersPage, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
           if (error) throw error;
-          for (const u of usersPage?.users ?? []) {
-            if (u.email) emailById.set(u.id, u.email);
-          }
+          for (const u of usersPage?.users ?? []) if (u.email) emailById.set(u.id, u.email);
           if ((usersPage?.users?.length ?? 0) < 1000) break;
         }
       } catch (e) {
@@ -304,19 +246,12 @@ export const adminListRedemptions = createServerFn({ method: "GET" })
 
     const expiryById = new Map<string, string | null>();
     if (userIds.length > 0) {
-      const { data: subs } = await supabaseAdmin
-        .from("subscriptions")
-        .select("user_id, expires_at, plan")
-        .in("user_id", userIds);
-      for (const s of subs ?? []) {
-        if (s.plan !== "free") expiryById.set(s.user_id, s.expires_at);
-      }
+      const { data: subs } = await supabaseAdmin.from("subscriptions").select("user_id, expires_at, plan").in("user_id", userIds);
+      for (const s of subs ?? []) if (s.plan !== "free") expiryById.set(s.user_id, s.expires_at);
     }
 
     return rows.map((r) => {
-      const codeRow = Array.isArray(r.activation_codes)
-        ? r.activation_codes[0]
-        : r.activation_codes;
+      const codeRow = Array.isArray(r.activation_codes) ? r.activation_codes[0] : r.activation_codes;
       let expiresAt = expiryById.get(r.user_id) ?? null;
       if (!expiresAt) {
         const fallback = new Date(r.created_at);
@@ -339,9 +274,7 @@ export const adminListRedemptions = createServerFn({ method: "GET" })
 
 export const adminSetCodeActive = createServerFn({ method: "POST" })
   .middleware([requireAppAuth])
-  .validator((input: unknown) =>
-    z.object({ id: z.string().uuid(), active: z.boolean() }).parse(input),
-  )
+  .validator((input: unknown) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
