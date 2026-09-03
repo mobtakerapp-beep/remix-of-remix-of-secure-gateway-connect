@@ -109,7 +109,7 @@ export async function createCodesClient(input: {
   const rows = Array.from({ length: input.count }, (_u, i) => ({
     code: generateCode(),
     plan: normalizedPlan,
-    duration_days: 30,
+    duration_days: input.durationDays,
     max_uses: input.maxUses,
     note: input.notes?.[i]?.trim() || input.note?.trim() || null,
     created_by: userData.user?.id ?? null,
