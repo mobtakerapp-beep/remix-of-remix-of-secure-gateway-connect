@@ -1,13 +1,9 @@
-```ts
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getRuntimeSecret } from "./runtime-env.server";
 
 function isNewSupabaseApiKey(value: string): boolean {
-  return (
-    value.startsWith("sb_publishable_") ||
-    value.startsWith("sb_secret_")
-  );
+  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
@@ -25,21 +21,15 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     const authorizationHeader = headers.get("Authorization");
-
     if (
       isNewSupabaseApiKey(supabaseKey) &&
-      authorizationHeader &&
       authorizationHeader === "Bearer " + supabaseKey
     ) {
       headers.delete("Authorization");
     }
 
     headers.set("apikey", supabaseKey);
-
-    return fetch(input, {
-      ...init,
-      headers,
-    });
+    return fetch(input, { ...init, headers });
   };
 }
 
@@ -80,13 +70,16 @@ export function createSupabaseAdminClient() {
   });
 }
 
+// Keep lazy runtime secret loading for Cloudflare, but always bind Supabase
+// methods to the real client. This avoids calling methods with the Proxy as
+// `this`, which can produce cryptic runtime errors during server functions.
 export const supabaseAdmin = new Proxy(
   {} as ReturnType<typeof createSupabaseAdminClient>,
   {
-    get(_, prop, receiver) {
+    get(_target, prop) {
       const client = createSupabaseAdminClient();
-      return Reflect.get(client, prop, receiver);
+      const value = Reflect.get(client, prop, client);
+      return typeof value === "function" ? value.bind(client) : value;
     },
   },
 );
-```
