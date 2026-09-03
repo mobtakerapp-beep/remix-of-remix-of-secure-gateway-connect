@@ -25,7 +25,14 @@ export async function exportNodeToPdf(
     import("jspdf"),
   ]);
 
-  const scale = 2;
+  // Mobile/PWA browsers have much lower canvas-memory limits than desktop.
+  // A slightly lower raster scale prevents the export from silently failing
+  // before the PDF is created, while keeping the printed PDF sharp enough.
+  const isMobile =
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const scale = isMobile ? 1.5 : 2;
+
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = 210;
   const pageHeight = 297;
@@ -35,7 +42,6 @@ export async function exportNodeToPdf(
   const usableWidth = pageWidth - margin * 2;
   const usableHeight = pageHeight - margin * 2 - footerSpace;
 
-
   // Render the sheet at true A4 content width (96dpi) so text fills the page
   // instead of being shrunk down from a wide desktop layout.
   const A4_CONTENT_PX = Math.round((usableWidth / 25.4) * 96);
@@ -44,11 +50,9 @@ export async function exportNodeToPdf(
   node.style.width = `${A4_CONTENT_PX}px`;
   node.style.maxWidth = `${A4_CONTENT_PX}px`;
   node.classList.add("pdf-exporting");
-  // Force reflow before measuring keep-together blocks.
   void node.offsetHeight;
 
   const nodeRect = node.getBoundingClientRect();
-  // Measure keep-together blocks before rasterizing, relative to the node top.
   const avoidBlocks = Array.from(node.querySelectorAll<HTMLElement>(".break-inside-avoid"))
     .map((element) => {
       const rect = element.getBoundingClientRect();
@@ -79,6 +83,7 @@ export async function exportNodeToPdf(
     node.style.width = previousWidth;
     node.style.maxWidth = previousMaxWidth;
   }
+
   const canvasPageHeight = (usableHeight * canvas.width) / usableWidth;
 
   const splitsBlock = (end: number, start: number) =>
@@ -91,21 +96,16 @@ export async function exportNodeToPdf(
     const naturalEnd = pageStart + canvasPageHeight;
     if (naturalEnd >= canvas.height) break;
 
-    // Prefer cutting at the natural end, but never inside a keep-together block.
     let pageEnd = naturalEnd;
     if (splitsBlock(naturalEnd, pageStart)) {
-      // Move the cut to the start of the block that would be split,
-      // so the whole block moves to the next page.
       const block = avoidBlocks.find(
         (b) => b.top > pageStart && b.top < naturalEnd && b.bottom > naturalEnd,
       )!;
       pageEnd = block.top;
     }
 
-    // Avoid a very short page (less than 25% filled) unless keeping a block together.
     const minFill = pageStart + canvasPageHeight * 0.25;
     if (pageEnd < minFill) {
-      // Only fall back to naturalEnd if it doesn't split a block.
       if (!splitsBlock(naturalEnd, pageStart)) {
         pageEnd = naturalEnd;
       }
@@ -116,10 +116,8 @@ export async function exportNodeToPdf(
     pageStart = pageEnd;
   }
 
-
   const { getIsPremium } = await import("@/lib/premium-flag");
   const watermark = getIsPremium() ? null : "تصميم مروة أبوبكر / أكاديمية التعزيز";
-
 
   cuts.forEach((start, index) => {
     const end = cuts[index + 1] ?? canvas.height;
@@ -131,7 +129,17 @@ export async function exportNodeToPdf(
     if (!ctx) return;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, slice.width, slice.height);
-    ctx.drawImage(canvas, 0, Math.round(start), canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+    ctx.drawImage(
+      canvas,
+      0,
+      Math.round(start),
+      canvas.width,
+      sliceHeight,
+      0,
+      0,
+      canvas.width,
+      sliceHeight,
+    );
     const imageHeight = (sliceHeight * usableWidth) / canvas.width;
     if (index > 0) pdf.addPage();
     pdf.addImage(
@@ -145,8 +153,7 @@ export async function exportNodeToPdf(
   });
 
   if (watermark) {
-    // Drawn from a canvas so Arabic text keeps correct shaping.
-    const dpi = 4; // px per mm
+    const dpi = 4;
     const heightMm = 14;
     const probe = document.createElement("canvas").getContext("2d");
     const fontPx = Math.round(heightMm * dpi * 0.6);
@@ -184,11 +191,8 @@ export async function exportNodeToPdf(
     }
   }
 
-
-  // Designer credit at the bottom of every page. Drawn from a canvas so
-  // Arabic text keeps its correct shaping (the PDF core fonts cannot).
   if (credit) {
-    const dpi = 4; // px per mm
+    const dpi = 4;
     const heightMm = 5;
     const c = document.createElement("canvas");
     const ctx = c.getContext("2d");
@@ -222,6 +226,39 @@ export async function exportNodeToPdf(
     }
   }
 
-  pdf.save(fileName);
-}
+  // pdf.save() is unreliable inside some installed PWAs, especially on iOS.
+  // Build the Blob ourselves and use the best mobile-supported handoff:
+  // native share for a PDF file, then a normal download, then opening the PDF.
+  const blob = pdf.output("blob");
+  const safeName = fileName.toLowerCase().endsWith(".pdf") ? fileName : `${fileName}.pdf`;
+  const file = new File([blob], safeName, { type: "application/pdf" });
 
+  if (
+    isMobile &&
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function" &&
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [file] })
+  ) {
+    try {
+      await navigator.share({ files: [file], title: safeName });
+      return;
+    } catch (error) {
+      // User closing the share sheet is not an export failure.
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = safeName;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  // Give browsers time to start the download before releasing the Blob URL.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
