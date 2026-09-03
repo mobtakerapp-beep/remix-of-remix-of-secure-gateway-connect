@@ -294,7 +294,6 @@ export function resolveAiConfigs(): AiConfig[] {
     });
   }
 
-
   if (configs.length === 0) {
     throw new Error(
       "مفتاح الذكاء الاصطناعي غير متاح للسيرفر. أضف GEMINI_API_KEY أو GROQ_API_KEY كـ Secret binding في Cloudflare.",
@@ -368,29 +367,29 @@ export async function buildLessonPackage(
       let response: Response;
       try {
         response = await fetch(ai.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(isGemini
-            ? { "x-goog-api-key": ai.key }
-            : { Authorization: `Bearer ${ai.key}` }),
-        },
-        body: JSON.stringify(
-          isGemini
-            ? {
-                contents: [{ role: "user", parts: geminiParts }],
-                generationConfig: {
-                  responseMimeType: "application/json",
-                  maxOutputTokens: 16000,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(isGemini
+              ? { "x-goog-api-key": ai.key }
+              : { Authorization: `Bearer ${ai.key}` }),
+          },
+          body: JSON.stringify(
+            isGemini
+              ? {
+                  contents: [{ role: "user", parts: geminiParts }],
+                  generationConfig: {
+                    responseMimeType: "application/json",
+                    maxOutputTokens: 16000,
+                  },
+                }
+              : {
+                  model: ai.model,
+                  messages: [{ role: "user", content: messageContent }],
+                  response_format: { type: "json_object" },
+                  max_tokens: 10000,
                 },
-              }
-            : {
-                model: ai.model,
-                messages: [{ role: "user", content: messageContent }],
-                response_format: { type: "json_object" },
-                max_tokens: 16000,
-              },
-        ),
+          ),
         });
       } catch (networkError) {
         // Network/DNS failure: retry once, then move to the next provider.
