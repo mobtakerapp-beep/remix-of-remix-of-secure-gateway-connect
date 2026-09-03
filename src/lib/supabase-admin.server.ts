@@ -1,9 +1,8 @@
 /**
  * Server-side Supabase admin client (service role).
- * Safely accesses Cloudflare Pages runtime secrets via Vinxi/H3 event context.
+ * Safe runtime environment reader without external build dependencies.
  */
 import { createClient } from "@supabase/supabase-js";
-import { getEvent } from "vinxi/http";
 import type { Database } from "@/integrations/supabase/types";
 
 function isNewSupabaseApiKey(value: string): boolean {
@@ -27,26 +26,15 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function getSecretKey(): string | undefined {
-  // 1. محاولة القراءة من سياق الطلب الخاص بـ Cloudflare Pages (السبب الرئيسي للحل)
-  try {
-    const event = getEvent();
-    if (event?.context) {
-      const cfEnv = (event.context as any).cloudflare?.env || (event.context as any).env;
-      if (cfEnv?.SUPABASE_SERVICE_ROLE_KEY) {
-        return cfEnv.SUPABASE_SERVICE_ROLE_KEY;
-      }
-    }
-  } catch {
-    // خارج نطاق الـ Request
+  // قراءة بالـ Bracket Notation لتجنب حذف Vite للمتغير أثناء البناء
+  if (typeof process !== "undefined" && process?.env) {
+    const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+    if (key) return key;
   }
 
-  // 2. محاولة القراءة من process.env (للتجربة المحلية لو موجودة)
-  if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-    return process.env.SUPABASE_SERVICE_ROLE_KEY;
-  }
-
-  // 3. محاولة أليفة أخيرة من globalThis في Cloudflare
-  return (globalThis as any)?.SUPABASE_SERVICE_ROLE_KEY || (globalThis as any)?.env?.SUPABASE_SERVICE_ROLE_KEY;
+  // دعم مباشر لبيئة Cloudflare Workers / Edge
+  const g = globalThis as any;
+  return g?.process?.env?.["SUPABASE_SERVICE_ROLE_KEY"] || g?.env?.["SUPABASE_SERVICE_ROLE_KEY"];
 }
 
 export function createSupabaseAdminClient() {
