@@ -63,6 +63,15 @@ function AuthPage() {
     setShowReset((v) => !v);
     setResetCode("");
     setResetPassword("");
+    if (!showReset) {
+      // Never carry a remembered/login email, password, or recovery code
+      // into the password-recovery form.
+      setEmail("");
+      setPassword("");
+    } else {
+      const savedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY);
+      if (savedEmail) setEmail(savedEmail);
+    }
   };
 
   const resetWithCode = async (e: React.FormEvent) => {
