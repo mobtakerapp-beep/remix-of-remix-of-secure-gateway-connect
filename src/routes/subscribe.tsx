@@ -107,10 +107,19 @@ function SubscribePage() {
           expired: ar ? "انتهت صلاحية الكود" : "Code expired",
           used_up: ar ? "تم استخدام هذا الكود بالكامل" : "This code has been fully used",
         };
-        toast.error(msgs[res.reason] ?? (ar ? "تعذّر التفعيل" : "Activation failed"));
+        const errorMsg = msgs[res.reason] || res.reason || (ar ? "تعذّر التفعيل" : "Activation failed");
+        toast.error(errorMsg);
       }
-    } catch {
-      toast.error(ar ? "تعذّر التفعيل، حاول لاحقًا" : "Could not activate, try again");
+    } catch (err: any) {
+      console.error("Redeem activation error:", err);
+      const serverError = err?.message || err?.toString();
+      toast.error(
+        serverError && serverError !== "Error"
+          ? `${ar ? "خطأ: " : "Error: "}${serverError}`
+          : ar
+            ? "تعذّر التفعيل، حاول لاحقًا"
+            : "Could not activate, try again",
+      );
     } finally {
       setBusy(false);
     }
