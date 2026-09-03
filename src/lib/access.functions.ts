@@ -114,6 +114,17 @@ export const adminCreateCodes = createServerFn({ method: "POST" })
     return { codes: (inserted ?? []).map((r) => r.code) };
   });
 
+export const adminDeleteCode = createServerFn({ method: "POST" })
+  .middleware([requireAppAuth])
+  .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId, getClaimEmail(context.claims), context.supabase);
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
+    const { error } = await supabaseAdmin.from("activation_codes").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export type RedemptionRow = {
   id: string;
   code: string;
