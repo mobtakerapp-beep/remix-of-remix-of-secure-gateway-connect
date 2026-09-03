@@ -78,17 +78,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "مولّد الدروس الذكي — ألعاب وأسئلة وأوراق عمل" },
+      { title: "ملخصي" },
       { name: "description", content: "حوّل أي درس إلى أسئلة تفاعلية وألعاب وأوراق عمل جاهزة للطباعة." },
-      { name: "author", content: "مولّد الدروس الذكي" },
-      { property: "og:title", content: "مولّد الدروس الذكي للمعلمين" },
+      { name: "author", content: "ملخصي" },
+      { property: "og:title", content: "ملخصي" },
       { property: "og:description", content: "حوّل أي درس إلى أسئلة تفاعلية وألعاب وأوراق عمل للطباعة." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "theme-color", content: "#1f6fd0" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "مولّد الدروس" },
+      { name: "apple-mobile-web-app-title", content: "ملخصي" },
     ],
     links: [
       {
@@ -129,8 +129,6 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
-  // Universal OAuth completion: finish sign-in no matter which path the
-  // provider returns to (works on any server / any domain).
   useEffect(() => {
     const url = new URL(window.location.href);
     const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
@@ -138,7 +136,7 @@ function RootComponent() {
     const refreshToken = hash.get("refresh_token");
     const code = url.searchParams.get("code");
     if (!accessToken && !code) return;
-    if (url.pathname === "/auth/callback") return; // dedicated page handles it
+    if (url.pathname === "/auth/callback") return;
 
     let cancelled = false;
     void (async () => {
@@ -165,7 +163,6 @@ function RootComponent() {
   }, []);
 
   useEffect(() => {
-
     if (!("serviceWorker" in navigator)) return;
     const host = window.location.hostname;
     const blocked =
@@ -189,7 +186,6 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
       </I18nProvider>
     </QueryClientProvider>
