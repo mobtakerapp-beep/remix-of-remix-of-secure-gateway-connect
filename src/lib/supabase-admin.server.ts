@@ -33,14 +33,20 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+// Cloudflare uses the EXTERNAL_* names for the real Supabase project.
+// Keep the old names as fallbacks so local/Lovable environments continue to work.
 function getSecretKey(): string | undefined {
-  return getRuntimeSecret("SUPABASE_SERVICE_ROLE_KEY");
+  return (
+    getRuntimeSecret("EXTERNAL_SUPABASE_SERVICE_KEY") ||
+    getRuntimeSecret("SUPABASE_SERVICE_ROLE_KEY")
+  );
 }
 
 function getSupabaseUrl(): string | undefined {
   return (
     getRuntimeSecret("EXTERNAL_SUPABASE_URL") ||
-    getRuntimeSecret("SUPABASE_URL")
+    getRuntimeSecret("SUPABASE_URL") ||
+    getRuntimeSecret("VITE_SUPABASE_URL")
   );
 }
 
@@ -49,12 +55,14 @@ export function createSupabaseAdminClient() {
   const serviceKey = getSecretKey();
 
   if (!url) {
-    throw new Error("SUPABASE_URL is missing from environment variables");
+    throw new Error(
+      "EXTERNAL_SUPABASE_URL is missing from environment variables",
+    );
   }
 
   if (!serviceKey) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is missing from environment variables",
+      "EXTERNAL_SUPABASE_SERVICE_KEY is missing from environment variables",
     );
   }
 
