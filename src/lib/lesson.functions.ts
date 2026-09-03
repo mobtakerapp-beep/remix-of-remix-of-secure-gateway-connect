@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireAppAuth } from "@/lib/app-auth-middleware";
-import { getRuntimeSecret } from "./runtime-env.server";
 import {
   checkGenerationLogCap,
   getSubscriptionStatus,
@@ -49,31 +48,20 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     let result: Awaited<ReturnType<typeof buildLessonPackage>>;
     if (data.mode === "youtube") {
       const url = data.youtubeUrl ?? "";
-      let title = "YouTube";
-      let text = "";
 
-      // First use fresh YouTube player data. This avoids the old hard-coded
-      // player key and is much more reliable for normal public videos.
-      try {
-        const robust = await import("./youtube-robust.server");
-        const transcript = await robust.fetchYoutubeTranscriptRobust(url);
-        title = transcript.title;
-        text = transcript.text;
-      } catch (error) {
-        // Keep the existing audio-transcription path as a real fallback for
-        // public videos that have no usable caption track.
-        if (error instanceof Error && error.message === "youtube_invalid_url") {
-          throw error;
-        }
-        const { fetchYoutubeTranscript } = await import("./youtube.server");
-        const transcriptKey = getRuntimeSecret("GEMINI_API_KEY");
-        const transcript = await fetchYoutubeTranscript(url, transcriptKey);
-        title = transcript.title;
-        text = transcript.text;
-      }
+      // YouTube is handled by the robust transcript path only.
+      // We deliberately do NOT fall back to the old googlevideo audio
+      // downloader, which is what produced the misleading audio error.
+      const robust = await import("./youtube-robust.server");
+      const transcript = await robust.fetchYoutubeTranscriptRobust(url);
 
       result = await buildLessonPackage(
-        { ...data, mode: "text", text: `${title}\n\n${text}`, youtubeUrl: undefined },
+        {
+          ...data,
+          mode: "text",
+          text: `${transcript.title}\n\n${transcript.text}`,
+          youtubeUrl: undefined,
+        },
         providers,
       );
     } else {
