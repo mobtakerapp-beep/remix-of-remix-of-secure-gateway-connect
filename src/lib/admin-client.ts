@@ -91,3 +91,9 @@ export async function setCodeActiveClient(id: string, active: boolean) {
   if (error) throw error;
   return { ok: true };
 }
+
+export async function deleteCodeClient(id: string) {
+  const { error } = await supabase.from("activation_codes").delete().eq("id", id);
+  if (error) throw error;
+  return { ok: true };
+}
