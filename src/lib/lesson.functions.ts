@@ -67,8 +67,7 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     );
     if (!withinCap) throw new Error("daily_log_cap_reached");
 
-    // Free/trial: text + image only. Standard: PDF up to 2 pages. Premium: PDF up to 3 pages + YouTube up to 2 minutes.
-    const isPremium = status.plan === "yearly" || (status.plan as string) === "premium";
+    const isPremium = status.plan === "premium";
     const isPaid = status.plan !== "free";
 
     if (data.mode === "youtube") {
@@ -84,7 +83,7 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
 
     if (data.mode === "pdf") {
       const maxPages = isPremium ? 3 : isPaid ? 2 : 0;
-      if (maxPages === 0) throw new Error("pdf_premium_only");
+      if (maxPages === 0) throw new Error("pdf_standard_only");
       const pages = data.fileData ? countPdfPages(data.fileData) : null;
       if (pages === null) throw new Error("pdf_page_count_unavailable");
       if (pages > maxPages) throw new Error("pdf_too_many_pages");
