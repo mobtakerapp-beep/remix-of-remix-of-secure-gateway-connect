@@ -30,7 +30,7 @@ function createSupabaseAdminClient() {
   const url = "https://sajkxtqcaiubmtamenke.supabase.co";
   
   // حطي هنا مفتاح الـ service_role السري بتاعك بين القوسين دول
-  const serviceKey = "حطي_مفتاح_الخدمة_هنا";
+  const serviceKey = "sb_secret_0nyb-K1P3DQ8s7U4rpnpVg_dMgR_VY_";
 
   return createClient<Database>(url, serviceKey, {
     global: { fetch: createSupabaseFetch(serviceKey) },
