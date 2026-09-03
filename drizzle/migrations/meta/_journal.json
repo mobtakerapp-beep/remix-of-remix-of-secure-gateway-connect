@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1788269486726,
+      "tag": "0000_core_schema_and_admin_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788269512504,
+      "tag": "0001_bootstrap_account_rpc",
+      "breakpoints": true
+    }
+  ]
+}
