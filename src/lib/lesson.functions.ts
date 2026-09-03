@@ -71,22 +71,22 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     const isPaid = status.plan !== "free";
 
     if (data.mode === "youtube") {
-      if (!isPremium) throw new Error("youtube_premium_only");
+      if (!isPremium) throw new Error("الفيديو متاح في الاشتراك المميز فقط");
       const url = data.youtubeUrl ?? "";
       const { parseYoutubeId } = await import("./youtube-url");
       const videoId = parseYoutubeId(url);
       if (!videoId) throw new Error("youtube_invalid_url");
       const duration = await getYoutubeDurationSeconds(videoId);
-      if (duration !== null && duration > 120) throw new Error("youtube_too_long");
-      if (duration === null) throw new Error("youtube_duration_unavailable");
+      if (duration !== null && duration > 120) throw new Error("الفيديو يجب ألا يتجاوز دقيقتين");
+      if (duration === null) throw new Error("تعذر التحقق من مدة الفيديو، حاولي مرة أخرى");
     }
 
     if (data.mode === "pdf") {
       const maxPages = isPremium ? 3 : isPaid ? 2 : 0;
-      if (maxPages === 0) throw new Error("pdf_standard_only");
+      if (maxPages === 0) throw new Error("ملف PDF متاح في الاشتراك العادي أو المميز فقط");
       const pages = data.fileData ? countPdfPages(data.fileData) : null;
-      if (pages === null) throw new Error("pdf_page_count_unavailable");
-      if (pages > maxPages) throw new Error("pdf_too_many_pages");
+      if (pages === null) throw new Error("تعذر قراءة عدد صفحات ملف PDF");
+      if (pages > maxPages) throw new Error(`الحد الأقصى لملف PDF في خطتك هو ${maxPages} صفحات`);
     }
 
     const { buildLessonPackage, resolveAiConfigs } = await import("./lesson.server");
