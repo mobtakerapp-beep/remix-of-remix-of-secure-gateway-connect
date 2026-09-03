@@ -1,13 +1,12 @@
 /**
  * Single source of truth for AI model names.
  *
- * Google retires Gemini model aliases regularly (2.5-flash -> 2.0-flash -> 3.6-flash).
- * When that happens, change it HERE only — every provider path reads these values.
- * The `*_MODEL` secrets allow overriding without a redeploy.
+ * The default Gemini model should track a currently supported production model.
+ * The `*_MODEL` secrets still allow overriding without a code change.
  */
 
-export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
-export const DEFAULT_OPENROUTER_MODEL = "google/gemini-3.6-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.7-flash";
+export const DEFAULT_OPENROUTER_MODEL = "google/gemini-3.7-flash";
 export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
 
 /** REST endpoint for a direct (non-OpenAI-compatible) Gemini generateContent call. */
