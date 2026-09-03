@@ -1,6 +1,6 @@
 /**
  * Server-side Supabase admin client (service role).
- * Safely reads key from Cloudflare environment variables.
+ * Safely reads key dynamically at runtime to prevent Vite build-time stripping.
  */
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -25,11 +25,20 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+function getSecretKey(): string | undefined {
+  // قراءة ديناميكية تمنع Vite من مسح المتغير أو تحويله لـ undefined أثناء الـ Build
+  const dynamicEnv = process["env"];
+  return (
+    dynamicEnv?.SUPABASE_SERVICE_ROLE_KEY ||
+    (globalThis as any)?.process?.env?.SUPABASE_SERVICE_ROLE_KEY ||
+    (globalThis as any)?.__env__?.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
+
 function createSupabaseAdminClient() {
   const url = "https://sajkxtqcaiubmtamenke.supabase.co";
   
-  // بيقرأ اسم المتغير من السيرفر فقط بدون كتابة المفتاح صريح
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = getSecretKey();
 
   if (!serviceKey) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing from environment variables");
