@@ -85,25 +85,38 @@ export const redeemCode = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
-    const code = data.code.trim();
+    
+    // تنظيف الكود وتنسيقه بالشكل المطلوب (4 حروف - 4 حروف - 4 حروف)
+    const rawInput = data.code.trim();
+    const cleanChars = rawInput.replace(/[^a-zA-Z0-9]/g, "");
+    let formattedCode = rawInput;
 
-    console.log("[redeemCode] Attempting to redeem code:", code, "for user:", context.userId);
+    if (cleanChars.length === 12) {
+      formattedCode = `${cleanChars.slice(0, 4)}-${cleanChars.slice(4, 8)}-${cleanChars.slice(8, 12)}`;
+    }
 
+    console.log("[redeemCode] Input:", rawInput, "-> Searching DB for:", formattedCode, "User:", context.userId);
+
+    // البحث مع تجاهل الكابتل والاسمول
     const { data: row, error: fetchError } = await supabaseAdmin
       .from("activation_codes")
       .select("*")
-      .ilike("code", code)
+      .ilike("code", formattedCode)
       .maybeSingle();
 
-    console.log("[redeemCode] Query result:", { row, fetchError });
+    if (fetchError) {
+      console.error("[redeemCode] DB Error searching code:", fetchError);
+    }
 
-    if (!row || !row.active) return { ok: false as const, reason: "invalid" };
+    if (!row || row.active === false) {
+      console.warn("[redeemCode] Code not found or disabled. Row:", row);
+      return { ok: false as const, reason: "invalid" };
+    }
 
-    // A code that has never been used cannot expire: its validity window only
-    // starts on first activation.
     const neverUsed = (row.used_count ?? 0) === 0;
-    if (!neverUsed && row.expires_at && new Date(row.expires_at) < new Date())
+    if (!neverUsed && row.expires_at && new Date(row.expires_at) < new Date()) {
       return { ok: false as const, reason: "expired" };
+    }
 
     const { data: mine } = await supabaseAdmin
       .from("code_redemptions")
@@ -112,17 +125,26 @@ export const redeemCode = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
 
-    if (!mine && (row.used_count ?? 0) >= row.max_uses)
+    if (!mine && (row.used_count ?? 0) >= row.max_uses) {
       return { ok: false as const, reason: "used_up" };
+    }
 
     if (!mine) {
-      await supabaseAdmin.from("code_redemptions").insert({
-        code_id: row.id,
-        user_id: context.userId,
-        device_fingerprint: data.device ?? null,
-      });
       const codeExpiry = new Date();
       codeExpiry.setDate(codeExpiry.getDate() + (row.duration_days ?? 30));
+
+      const { error: insertRedeemError } = await supabaseAdmin
+        .from("code_redemptions")
+        .insert({
+          code_id: row.id,
+          user_id: context.userId,
+          device_fingerprint: data.device ?? null,
+        });
+
+      if (insertRedeemError) {
+        console.error("[redeemCode] Error inserting redemption:", insertRedeemError);
+      }
+
       await supabaseAdmin
         .from("activation_codes")
         .update(
@@ -152,9 +174,16 @@ export const redeemCode = createServerFn({ method: "POST" })
     };
 
     if (existing) {
-      await supabaseAdmin.from("subscriptions").update(payload).eq("user_id", context.userId);
+      const { error: updateSubErr } = await supabaseAdmin
+        .from("subscriptions")
+        .update(payload)
+        .eq("user_id", context.userId);
+      if (updateSubErr) console.error("[redeemCode] Subscription update error:", updateSubErr);
     } else {
-      await supabaseAdmin.from("subscriptions").insert(payload);
+      const { error: insertSubErr } = await supabaseAdmin
+        .from("subscriptions")
+        .insert(payload);
+      if (insertSubErr) console.error("[redeemCode] Subscription insert error:", insertSubErr);
     }
 
     return { ok: true as const, plan: row.plan, expiresAt: expires.toISOString() };
