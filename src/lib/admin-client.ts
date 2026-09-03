@@ -3,7 +3,7 @@
  *
  * These talk to the database directly with the signed-in user's session, so the
  * admin dashboard keeps working on deployments where the server-side service
- * key is not configured (e.g. an external Cloudflare Worker).
+ * key is not configured.
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { CodeRow, RedemptionRow } from "@/lib/access.functions";
@@ -68,9 +68,7 @@ export async function listRedemptionsClient(): Promise<RedemptionRow[]> {
       .from("profiles")
       .select("id, teacher_name")
       .in("id", userIds);
-    for (const p of profiles ?? []) {
-      emailById.set(p.id, p.teacher_name || null);
-    }
+    for (const p of profiles ?? []) emailById.set(p.id, p.teacher_name || null);
   }
 
   return rows.map((r) => {
@@ -100,17 +98,18 @@ function generateCode() {
 
 export async function createCodesClient(input: {
   count: number;
-  plan: "monthly" | "yearly";
+  plan: "monthly" | "yearly" | "standard" | "premium";
   durationDays: number;
   maxUses: number;
   note?: string | undefined;
   notes?: string[] | undefined;
 }): Promise<{ codes: string[] }> {
   const { data: userData } = await supabase.auth.getUser();
+  const normalizedPlan = input.plan === "standard" || input.plan === "monthly" ? "standard" : "premium";
   const rows = Array.from({ length: input.count }, (_u, i) => ({
     code: generateCode(),
-    plan: input.plan,
-    duration_days: input.durationDays,
+    plan: normalizedPlan,
+    duration_days: 30,
     max_uses: input.maxUses,
     note: input.notes?.[i]?.trim() || input.note?.trim() || null,
     created_by: userData.user?.id ?? null,
