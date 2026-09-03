@@ -21,7 +21,7 @@ const InputSchema = z.object({
     flashcards: z.number().int().min(1).max(20),
   }),
   language: z.enum(["auto", "ar", "en"]).default("auto"),
-  numerals: z.enum(["auto", "ar", "en"]).default("auto"),
+  numerals: z.enum(["auto", "ar"]).or(z.literal("en")).default("auto"),
   grade: z.number().int().min(1).max(12).default(5),
 });
 
@@ -69,9 +69,29 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
 
     const isPremium = status.plan === "premium";
     const isPaid = status.plan !== "free";
+    const isOwner = status.generationsLimit >= 999999;
+
+    // هدية الـ8 أيام: كل المميزات المسموح بها في الاشتراك، لكن الفيديو مقفول.
+    // نحددها من آخر كود تم استخدامه بدل الاعتماد على مدة الاشتراك الحالية.
+    let isEightDayGift = false;
+    if (!isOwner) {
+      const { data: redemption } = await context.supabase
+        .from("code_redemptions")
+        .select("activation_codes(duration_days)")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const activationCode = Array.isArray(redemption?.activation_codes)
+        ? redemption?.activation_codes[0]
+        : redemption?.activation_codes;
+      isEightDayGift = Number((activationCode as { duration_days?: number } | null)?.duration_days) === 8;
+    }
 
     if (data.mode === "youtube") {
-      if (!isPremium) throw new Error("الفيديو متاح في الاشتراك المميز فقط");
+      if (!isPremium || isEightDayGift) {
+        throw new Error("الفيديو متاح في الاشتراك المميز فقط، وهدية الـ8 أيام لا تشمل الفيديو");
+      }
       const url = data.youtubeUrl ?? "";
       const { parseYoutubeId } = await import("./youtube-url");
       const videoId = parseYoutubeId(url);
