@@ -1,7 +1,7 @@
 /**
  * Server-side Supabase admin client (service role).
  *
- * Unlike the generated `@/lib/supabase-admin.server`, this reads the
+ * Unlike the generated `@/integrations/supabase/client.server`, this reads the
  * secrets through `getRuntimeSecret`, so it also works on a self-hosted
  * Cloudflare Worker deployment where secrets arrive as Worker bindings instead
  * of `process.env`.
