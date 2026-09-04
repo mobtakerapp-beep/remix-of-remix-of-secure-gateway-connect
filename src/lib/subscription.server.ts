@@ -18,12 +18,14 @@ export type SubscriptionStatus = {
   daysRemaining: number | null;
 };
 
-const FREE_TOTAL_LIMIT = 1; // المجاني: محاولة واحدة فقط مدى الحياة
-const PAID_DAILY_LIMIT = 3; // العادي والمميز: 3 دروس يوميًا
-const UNLIMITED_LIMIT = 999999; // بلا حدود للأدمن
+const FREE_TOTAL_LIMIT = 1;
+const STANDARD_DAILY_LIMIT = 2;
+const PREMIUM_DAILY_LIMIT = 4;
+const UNLIMITED_LIMIT = 999999;
 
 const FREE_GENERATION_LOG_CAP = 1;
-const PAID_GENERATION_LOG_CAP = 3;
+const STANDARD_GENERATION_LOG_CAP = 2;
+const PREMIUM_GENERATION_LOG_CAP = 4;
 
 function isSameDay(a: Date, b: Date) {
   return (
@@ -36,10 +38,14 @@ function isSameDay(a: Date, b: Date) {
 function normalizePlan(raw: string | null | undefined): "free" | "standard" | "premium" {
   if (raw === "standard") return "standard";
   if (raw === "premium") return "premium";
-  // Legacy paid plans are preserved as premium so existing subscribers
-  // do not lose premium features after the new tier system is introduced.
   if (raw === "monthly" || raw === "yearly") return "premium";
   return "free";
+}
+
+function dailyLimitForPlan(plan: "free" | "standard" | "premium") {
+  if (plan === "premium") return PREMIUM_DAILY_LIMIT;
+  if (plan === "standard") return STANDARD_DAILY_LIMIT;
+  return FREE_TOTAL_LIMIT;
 }
 
 export async function getSubscriptionStatus(
@@ -93,12 +99,12 @@ export async function getSubscriptionStatus(
         plan = "free";
         generationsLimit = FREE_TOTAL_LIMIT;
       } else {
-        generationsLimit = PAID_DAILY_LIMIT;
+        generationsLimit = dailyLimitForPlan(plan);
       }
     } else if (plan === "free") {
       generationsLimit = FREE_TOTAL_LIMIT;
     } else {
-      generationsLimit = PAID_DAILY_LIMIT;
+      generationsLimit = dailyLimitForPlan(plan);
     }
 
     if (plan !== "free" && !isSameDay(resetAt, now)) {
@@ -183,13 +189,20 @@ export async function checkGenerationLogCap(
   const count = typeof data === "number" ? data : Number(data ?? 0);
   if (error) {
     console.error("count_generations_today failed", error);
-    return {
-      ok: true,
-      count: 0,
-      cap: plan === "free" ? FREE_GENERATION_LOG_CAP : PAID_GENERATION_LOG_CAP,
-    };
+    const cap =
+      plan === "free"
+        ? FREE_GENERATION_LOG_CAP
+        : plan === "standard"
+          ? STANDARD_GENERATION_LOG_CAP
+          : PREMIUM_GENERATION_LOG_CAP;
+    return { ok: true, count: 0, cap };
   }
-  const cap = plan === "free" ? FREE_GENERATION_LOG_CAP : PAID_GENERATION_LOG_CAP;
+  const cap =
+    plan === "free"
+      ? FREE_GENERATION_LOG_CAP
+      : plan === "standard"
+        ? STANDARD_GENERATION_LOG_CAP
+        : PREMIUM_GENERATION_LOG_CAP;
   return { ok: count < cap, count, cap };
 }
 
