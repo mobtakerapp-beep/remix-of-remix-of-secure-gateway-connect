@@ -196,6 +196,13 @@ export function LessonInput({
 
   return (
     <Card className="mx-auto w-full max-w-4xl rounded-3xl border-border/70 p-5 shadow-[var(--shadow-lift)] sm:p-7">
+      <div dir="rtl" className="mb-6 rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-secondary/70 to-accent/20 p-4 text-center shadow-sm">
+        <div className="text-base font-extrabold text-primary sm:text-lg">🎉 عرض السنوي لفترة محدودة!</div>
+        <div className="mt-1 text-sm font-semibold text-foreground sm:text-base">💙 الخطة العادية — بدل ٨٤$ سنويًا، الآن ٧٠$ فقط</div>
+        <div className="mt-1 text-sm font-bold text-primary">🎁 وفّري ١٤$ — خصم ١٧٪</div>
+        <div className="mt-1 text-xs text-muted-foreground">📚 ٣ دروس يوميًا طوال السنة</div>
+      </div>
+
       <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
         <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl p-1.5 sm:grid-cols-4">
           <TabsTrigger value="text" className="rounded-xl py-2.5">
