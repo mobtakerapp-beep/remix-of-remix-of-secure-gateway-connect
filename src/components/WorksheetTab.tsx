@@ -57,7 +57,7 @@ function SheetHeader({ pkg, ar, hideMascots }: { pkg: LessonPackage; ar: boolean
     <header className="border-b-4 border-double border-primary px-10 pb-5 pt-8 print:px-0 print:pt-0">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className={`text-xs font-bold text-emerald ${ar ? "" : "uppercase tracking-widest"}`}>{ar ? "ورقة عمل" : "Worksheet"}</p>
+          <p className={`text-xs font-bold text-emerald ${ar ? "" : "uppercase tracking-widest"}`}>{ar ? "اختبار" : "Test"}</p>
           <h2 className="mt-1 font-display text-2xl font-extrabold leading-snug text-primary"><MathText text={pkg.title} numerals={pkg.numerals} /></h2>
         </div>
         {!hideMascots && <div className="flex shrink-0 items-end gap-1"><img src={catImg} alt="" className="sheet-mascot size-12" /><img src={dogImg} alt="" className="sheet-mascot size-14" /></div>}
@@ -121,7 +121,7 @@ export function WorksheetTab({ pkg }: { pkg: LessonPackage }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   useEffect(() => { setHide(getHideMascots()); return subscribeHideMascots(() => setHide(getHideMascots())); }, []);
   const toggleHide = (value: boolean) => { setHide(value); setHideMascots(value); };
-  const downloadPdf = async () => { if (!sheetRef.current) return; setExporting(true); try { await exportNodeToPdf(sheetRef.current, `${pkg.title || "worksheet"}.pdf`, { credit: lang === "ar" ? DESIGNER_CREDIT_AR : DESIGNER_CREDIT_EN }); } finally { setExporting(false); } };
+  const downloadPdf = async () => { if (!sheetRef.current) return; setExporting(true); try { await exportNodeToPdf(sheetRef.current, `${pkg.title || "worksheet"} - اختبار.pdf`, { credit: lang === "ar" ? DESIGNER_CREDIT_AR : DESIGNER_CREDIT_EN }); } finally { setExporting(false); } };
   return (
     <div className="space-y-4">
       <div className="no-print flex flex-wrap items-end justify-between gap-4 rounded-3xl border border-border bg-card p-4">
