@@ -59,6 +59,28 @@ async function countGiftGenerationsToday(userId: string): Promise<number> {
   }
 }
 
+async function countPremiumVideosToday(userId: string): Promise<number> {
+  try {
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    const { count, error } = await supabaseAdmin
+      .from("ai_generation_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("mode", "youtube")
+      .gte("created_at", start.toISOString());
+    if (error) {
+      console.error("countPremiumVideosToday failed", error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (error) {
+    console.error("countPremiumVideosToday failed", error);
+    return 0;
+  }
+}
+
 export const generateLessonPackage = createServerFn({ method: "POST" })
   .middleware([requireAppAuth])
   .validator((input: unknown) => InputSchema.parse(input))
@@ -120,6 +142,12 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     if (data.mode === "youtube") {
       if (isGift) throw new Error("أكواد الهدايا لا تشمل الفيديو");
       if (!isPremium) throw new Error("الفيديو متاح في الاشتراك المميز فقط");
+      if (!isOwner) {
+        const videosToday = await countPremiumVideosToday(context.userId);
+        if (videosToday >= 1) {
+          throw new Error("premium_video_daily_limit");
+        }
+      }
       const url = data.youtubeUrl ?? "";
       const { parseYoutubeId } = await import("./youtube-url");
       const videoId = parseYoutubeId(url);
