@@ -1,8 +1,6 @@
 /**
  * Export a DOM node to a multi-page A4 PDF.
- * A page never cuts through a marked content block. If a question does not
- * fit completely in the remaining space, the whole question starts on the
- * next page.
+ * Marked worksheet questions are never split between pages.
  */
 export async function exportNodeToPdf(
   node: HTMLElement,
@@ -46,11 +44,11 @@ export async function exportNodeToPdf(
   void node.offsetHeight;
 
   const nodeRect = node.getBoundingClientRect();
-  // These are the actual blocks that must stay intact. Questions in the
-  // worksheet are marked with .pdf-question; the fallback keeps section
-  // headers/summary blocks intact as well.
-  const avoidBlocks = Array.from(
-    node.querySelectorAll<HTMLElement>(".pdf-question, .break-inside-avoid"),
+  // Only worksheet questions are hard page-break boundaries. This prevents
+  // a question from being split while avoiding accidental breaks inside the
+  // surrounding layout containers.
+  const questionBlocks = Array.from(
+    node.querySelectorAll<HTMLElement>(".pdf-question"),
   )
     .map((element) => {
       const rect = element.getBoundingClientRect();
@@ -113,6 +111,10 @@ export async function exportNodeToPdf(
             border-top: 1.5px solid currentColor !important;
             padding-top: .08em !important;
           }
+          .pdf-exporting .pdf-question {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
         `;
         clonedDoc.head.appendChild(style);
       },
@@ -132,24 +134,20 @@ export async function exportNodeToPdf(
     const naturalEnd = pageStart + canvasPageHeight;
     if (naturalEnd >= canvas.height) break;
 
-    // Find the first intact block that would be crossed by this page edge.
-    // Move the edge to the block's TOP, so the entire question begins on the
-    // next page instead of leaving half of it on the current page.
-    const crossing = avoidBlocks.find(
-      (block) => block.top > pageStart + 1 && block.top < naturalEnd && block.bottom > naturalEnd,
+    // If the normal page edge falls inside a question, move the edge to the
+    // question's TOP. The whole question therefore starts on the next page.
+    const crossing = questionBlocks.find(
+      (block) =>
+        block.top > pageStart + 1 &&
+        block.top < naturalEnd &&
+        block.bottom > naturalEnd,
     );
 
-    let pageEnd = crossing ? crossing.top : naturalEnd;
+    // Never override this adjustment for a normal question. The old fallback
+    // could put a partially visible question at the bottom of a page.
+    const pageEnd = crossing ? crossing.top : naturalEnd;
+    if (pageEnd <= pageStart + 1) break;
 
-    // If the block starts so close to the top that moving the edge there would
-    // create a nearly empty page, keep the natural edge. This only applies to
-    // an unusually tall block; normal questions always move as one unit.
-    const minimumPageFill = pageStart + canvasPageHeight * 0.25;
-    if (crossing && pageEnd < minimumPageFill && crossing.bottom <= pageStart + canvasPageHeight * 1.05) {
-      pageEnd = naturalEnd;
-    }
-
-    if (pageEnd <= pageStart + 1) pageEnd = naturalEnd;
     cuts.push(pageEnd);
     pageStart = pageEnd;
   }
@@ -166,7 +164,17 @@ export async function exportNodeToPdf(
     if (!ctx) return;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, slice.width, slice.height);
-    ctx.drawImage(canvas, 0, Math.round(start), canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+    ctx.drawImage(
+      canvas,
+      0,
+      Math.round(start),
+      canvas.width,
+      sliceHeight,
+      0,
+      0,
+      canvas.width,
+      sliceHeight,
+    );
     const imageHeight = (sliceHeight * usableWidth) / canvas.width;
     if (index > 0) pdf.addPage();
     pdf.addImage(
