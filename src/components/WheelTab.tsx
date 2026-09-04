@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
-import { fmtNum, optionLetter, type LessonPackage } from "@/lib/lesson-types";
+import { fmtNum, type LessonPackage } from "@/lib/lesson-types";
 
 type WheelQuestion = { id: string; label: string; prompt: string; answer: string };
 
@@ -15,22 +15,19 @@ export function WheelTab({ pkg }: { pkg: LessonPackage }) {
   const { t: tr } = useI18n();
   const dir = pkg.language === "ar" ? "rtl" : "ltr";
   const ar = pkg.language === "ar";
+
+  // The wheel is intentionally oral/open-ended: it uses the lesson's existing
+  // MCQ content, but removes the choices and true/false items from the game.
+  // The correct option remains available only behind the Reveal Answer button.
   const questions = useMemo<WheelQuestion[]>(
-    () => [
-      ...pkg.mcqs.map((m, i) => ({
+    () =>
+      pkg.mcqs.map((m, i) => ({
         id: m.id,
         label: `${ar ? "س" : "Q"}${fmtNum(i + 1, pkg.numerals)}`,
-        prompt: `${m.question}\n${m.options.map((o, k) => `${optionLetter(k, pkg.language)}. ${o}`).join("\n")}`,
+        prompt: m.question,
         answer: m.options[m.answerIndex] ?? "",
       })),
-      ...pkg.trueFalse.map((t, i) => ({
-        id: t.id,
-        label: `${ar ? "ص" : "T"}${fmtNum(i + 1, pkg.numerals)}`,
-        prompt: t.statement,
-        answer: t.answer ? tr.trueLabel : tr.falseLabel,
-      })),
-    ],
-    [pkg, tr, ar],
+    [pkg, ar],
   );
 
   const [angle, setAngle] = useState(0);
@@ -134,26 +131,25 @@ export function WheelTab({ pkg }: { pkg: LessonPackage }) {
 
       <Card className="min-h-64 p-6" dir={dir}>
         {selected ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <Badge className="bg-emerald text-emerald-foreground">{selected.label}</Badge>
-            <p className="whitespace-pre-line text-xl font-semibold leading-relaxed">
+            <p className="text-2xl font-semibold leading-relaxed sm:text-3xl">
               {selected.prompt}
             </p>
-            {revealed ? (
+            {!revealed ? (
+              <Button variant="outline" onClick={() => setRevealed(true)}>
+                <Eye className="mr-2 size-4" /> {tr.reveal}
+              </Button>
+            ) : (
               <div className="rounded-xl bg-accent p-4 text-accent-foreground">
                 <p className="text-sm font-medium opacity-70">{tr.theAnswer}</p>
                 <p className="text-lg font-bold">{selected.answer}</p>
               </div>
-            ) : (
-              <Button variant="outline" onClick={() => setRevealed(true)}>
-                <Eye className="mr-2 size-4" /> {tr.reveal}
-              </Button>
             )}
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 py-10 text-center text-muted-foreground">
             <p className="text-lg font-medium">{tr.spinHint}</p>
-            
           </div>
         )}
       </Card>
