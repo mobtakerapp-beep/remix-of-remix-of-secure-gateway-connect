@@ -197,10 +197,12 @@ export function LessonInput({
   return (
     <Card className="mx-auto w-full max-w-4xl rounded-3xl border-border/70 p-5 shadow-[var(--shadow-lift)] sm:p-7">
       <div dir="rtl" className="mb-6 rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-secondary/70 to-accent/20 p-4 text-center shadow-sm">
-        <div className="text-base font-extrabold text-primary sm:text-lg">🎉 عرض السنوي لفترة محدودة!</div>
+        <div className="text-base font-extrabold text-primary sm:text-lg">🎉 عرض سنوي لفترة محدودة!</div>
         <div className="mt-1 text-sm font-semibold text-foreground sm:text-base">💙 الخطة العادية — بدل ٨٤$ سنويًا، الآن ٧٠$ فقط</div>
-        <div className="mt-1 text-sm font-bold text-primary">🎁 وفّري ١٤$ — خصم ١٧٪</div>
-        <div className="mt-1 text-xs text-muted-foreground">📚 ٣ دروس يوميًا طوال السنة</div>
+        <div className="mt-1 text-sm font-bold text-primary">📚 ٢ درس يوميًا طوال السنة</div>
+        <div className="mt-1 text-sm font-semibold text-foreground sm:text-base">💜 الخطة المميزة — بدل ١٨٠$ سنويًا، الآن ١٠٠$ فقط</div>
+        <div className="mt-1 text-sm font-bold text-primary">✨ ٤ دروس يوميًا + فيديو واحد يوميًا</div>
+        <div className="mt-1 text-xs text-muted-foreground">🎁 عرض خاص لفترة محدودة — اختاري الخطة المناسبة لكِ</div>
       </div>
 
       <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
@@ -334,30 +336,14 @@ export function LessonInput({
           ))}
         </div>
         <Button
-          size="lg"
-          className="w-full rounded-full gradient-hero px-8 text-base text-primary-foreground shadow-[var(--shadow-soft)] transition-transform hover:scale-[1.03] sm:w-auto"
+          onClick={submit}
           disabled={loading}
-          onClick={() => void submit()}
+          className="h-12 w-full rounded-2xl px-8 text-base font-bold shadow-[var(--shadow-soft)] sm:w-auto"
         >
-          {loading ? (
-            <>
-              <Loader2 className="me-2 size-5 animate-spin" /> {t.generating}
-            </>
-          ) : (
-            <>
-              <Sparkles className="me-2 size-5" /> {t.generate}
-            </>
-          )}
+          {loading ? <Loader2 className="me-2 size-5 animate-spin" /> : <Sparkles className="me-2 size-5" />}
+          {loading ? t.generating : t.generate}
         </Button>
       </div>
-      {loading && (
-        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-          <div className="h-full w-1/3 animate-[pulse_1.2s_ease-in-out_infinite] gradient-warm" />
-        </div>
-      )}
-      <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <UploadCloud className="size-3.5" /> {t.poweredBy}
-      </p>
     </Card>
   );
 }
