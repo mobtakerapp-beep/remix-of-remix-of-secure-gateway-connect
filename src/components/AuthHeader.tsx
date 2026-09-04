@@ -3,10 +3,10 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { SubscriptionBadge } from "./SubscriptionBadge";
 import { SubscriptionStatusCard } from "./SubscriptionStatusCard";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AuthHeader() {
   const { t, lang } = useI18n();
@@ -64,6 +64,31 @@ export function AuthHeader() {
       </Button>
       <SubscriptionBadge />
       <SubscriptionStatusCard />
+      <div dir="rtl" className="w-full overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-secondary/70 to-accent/20 shadow-sm">
+        <div className="px-4 pb-3 pt-4 text-center">
+          <div className="text-lg font-black text-primary sm:text-xl">🎁 عرض سنوي لفترة محدودة</div>
+          <p className="mt-1 text-xs font-medium text-muted-foreground sm:text-sm">
+            وفّر أكثر واستمتع بمزايا ملخصي طوال العام
+          </p>
+        </div>
+        <div className="grid gap-3 px-3 pb-3 sm:grid-cols-2 sm:px-4">
+          <div className="rounded-2xl border border-primary/15 bg-background/70 p-4 text-center shadow-sm">
+            <div className="text-sm font-black text-primary sm:text-base">💙 الخطة العادية</div>
+            <div className="mt-1 text-xl font-black text-foreground">٧٠$ <span className="text-sm font-semibold text-muted-foreground">سنويًا</span></div>
+            <div className="mt-1 text-xs text-muted-foreground line-through">بدل ٨٤$</div>
+            <div className="mt-2 text-sm font-bold text-primary">📚 ٢ درس يوميًا</div>
+          </div>
+          <div className="rounded-2xl border border-primary/15 bg-background/70 p-4 text-center shadow-sm">
+            <div className="text-sm font-black text-primary sm:text-base">💜 الخطة المميزة</div>
+            <div className="mt-1 text-xl font-black text-foreground">١٠٠$ <span className="text-sm font-semibold text-muted-foreground">سنويًا</span></div>
+            <div className="mt-1 text-xs text-muted-foreground line-through">بدل ١٨٠$</div>
+            <div className="mt-2 text-sm font-bold text-primary">✨ ٤ دروس + فيديو واحد يوميًا</div>
+          </div>
+        </div>
+        <div className="border-t border-primary/10 px-4 py-2.5 text-center text-xs font-bold text-muted-foreground sm:text-sm">
+          🔥 عرض خاص لفترة محدودة — اختر الخطة المناسبة لك
+        </div>
+      </div>
     </div>
   );
 }
