@@ -51,6 +51,28 @@ async function getYoutubeDurationSeconds(videoId: string): Promise<number | null
   }
 }
 
+async function countGiftVideosToday(userId: string): Promise<number> {
+  try {
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    const { count, error } = await supabaseAdmin
+      .from("ai_generation_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("mode", "youtube")
+      .gte("created_at", start.toISOString());
+    if (error) {
+      console.error("countGiftVideosToday failed", error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (error) {
+    console.error("countGiftVideosToday failed", error);
+    return 0;
+  }
+}
+
 export const generateLessonPackage = createServerFn({ method: "POST" })
   .middleware([requireAppAuth])
   .validator((input: unknown) => InputSchema.parse(input))
@@ -72,7 +94,7 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     const isOwner = status.generationsLimit >= 999999;
 
     // Gift codes are marked in activation_codes.note with the [GIFT] prefix.
-    // Gifts allow text + images only, regardless of their duration.
+    // Gifts now allow text + images, plus ONE YouTube video per day.
     let isGift = false;
     if (!isOwner) {
       const { data: redemption } = await context.supabase
@@ -90,8 +112,13 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     }
 
     if (data.mode === "youtube") {
-      if (!isPremium || isGift) {
-        throw new Error("الفيديو متاح في الاشتراك المميز فقط، وأكواد الهدايا لا تشمل الفيديو");
+      if (isGift) {
+        const giftVideosToday = await countGiftVideosToday(context.userId);
+        if (giftVideosToday >= 1) {
+          throw new Error("gift_video_daily_limit");
+        }
+      } else if (!isPremium) {
+        throw new Error("الفيديو متاح في الاشتراك المميز فقط");
       }
       const url = data.youtubeUrl ?? "";
       const { parseYoutubeId } = await import("./youtube-url");
