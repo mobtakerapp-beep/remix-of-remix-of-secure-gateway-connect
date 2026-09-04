@@ -23,6 +23,7 @@ const InputSchema = z.object({
   language: z.enum(["auto", "ar", "en"]).default("auto"),
   numerals: z.enum(["auto", "ar"]).or(z.literal("en")).default("auto"),
   grade: z.number().int().min(1).max(12).default(5),
+  includeMath: z.boolean().default(false),
 });
 
 function countPdfPages(dataUrl: string): number | null {
