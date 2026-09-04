@@ -62,9 +62,9 @@ export async function exportNodeToPdf(
       backgroundColor: "#ffffff",
       width: A4_CONTENT_PX,
       windowWidth: A4_CONTENT_PX,
-      // Keep the rendering mode that was working before the student-results change.
-      // It preserves the Arabic/math DOM rendering used by the lesson PDF.
-      foreignObjectRendering: true,
+      // Do not use SVG foreignObject rendering here. It can produce an empty
+      // canvas on Android/PWA even though the DOM itself is visible.
+      foreignObjectRendering: false,
       onclone: (clonedDoc) => {
         clonedDoc.documentElement.classList.remove("dark");
         clonedDoc.body.classList.remove("dark");
@@ -118,7 +118,8 @@ export async function exportNodeToPdf(
   }
 
   const canvasPageHeight = (usableHeight * canvas.width) / usableWidth;
-  const splitsBlock = (end: number, start: number) => avoidBlocks.some((b) => b.top > start && b.top < end && b.bottom > end);
+  const splitsBlock = (end: number, start: number) =>
+    avoidBlocks.some((b) => b.top > start && b.top < end && b.bottom > end);
   const cuts: number[] = [0];
   let pageStart = 0;
   let guard = 0;
