@@ -196,13 +196,30 @@ export function LessonInput({
 
   return (
     <Card className="mx-auto w-full max-w-4xl rounded-3xl border-border/70 p-5 shadow-[var(--shadow-lift)] sm:p-7">
-      <div dir="rtl" className="mb-6 rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-secondary/70 to-accent/20 p-4 text-center shadow-sm">
-        <div className="text-base font-extrabold text-primary sm:text-lg">🎉 عرض سنوي لفترة محدودة!</div>
-        <div className="mt-1 text-sm font-semibold text-foreground sm:text-base">💙 الخطة العادية — بدل ٨٤$ سنويًا، الآن ٧٠$ فقط</div>
-        <div className="mt-1 text-sm font-bold text-primary">📚 ٢ درس يوميًا طوال السنة</div>
-        <div className="mt-1 text-sm font-semibold text-foreground sm:text-base">💜 الخطة المميزة — بدل ١٨٠$ سنويًا، الآن ١٠٠$ فقط</div>
-        <div className="mt-1 text-sm font-bold text-primary">✨ ٤ دروس يوميًا + فيديو واحد يوميًا</div>
-        <div className="mt-1 text-xs text-muted-foreground">🎁 عرض خاص لفترة محدودة — اختاري الخطة المناسبة لكِ</div>
+      <div dir="rtl" className="mb-6 overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-secondary/70 to-accent/20 shadow-sm">
+        <div className="px-4 pb-3 pt-4 text-center">
+          <div className="text-lg font-black text-primary sm:text-xl">🎁 عرض سنوي لفترة محدودة</div>
+          <p className="mt-1 text-xs font-medium text-muted-foreground sm:text-sm">
+            وفّر أكثر واستمتع بمزايا ملخصي طوال العام
+          </p>
+        </div>
+        <div className="grid gap-3 px-3 pb-3 sm:grid-cols-2 sm:px-4">
+          <div className="rounded-2xl border border-primary/15 bg-background/70 p-4 text-center shadow-sm">
+            <div className="text-sm font-black text-primary sm:text-base">💙 الخطة العادية</div>
+            <div className="mt-1 text-xl font-black text-foreground">٧٠$ <span className="text-sm font-semibold text-muted-foreground">سنويًا</span></div>
+            <div className="mt-1 text-xs text-muted-foreground line-through">بدل ٨٤$</div>
+            <div className="mt-2 text-sm font-bold text-primary">📚 ٢ درس يوميًا</div>
+          </div>
+          <div className="rounded-2xl border border-primary/15 bg-background/70 p-4 text-center shadow-sm">
+            <div className="text-sm font-black text-primary sm:text-base">💜 الخطة المميزة</div>
+            <div className="mt-1 text-xl font-black text-foreground">١٠٠$ <span className="text-sm font-semibold text-muted-foreground">سنويًا</span></div>
+            <div className="mt-1 text-xs text-muted-foreground line-through">بدل ١٨٠$</div>
+            <div className="mt-2 text-sm font-bold text-primary">✨ ٤ دروس + فيديو واحد يوميًا</div>
+          </div>
+        </div>
+        <div className="border-t border-primary/10 px-4 py-2.5 text-center text-xs font-bold text-muted-foreground sm:text-sm">
+          🔥 عرض خاص لفترة محدودة — اختر الخطة المناسبة لك
+        </div>
       </div>
 
       <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
