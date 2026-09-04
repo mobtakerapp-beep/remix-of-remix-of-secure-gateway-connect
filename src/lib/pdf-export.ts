@@ -62,7 +62,6 @@ export async function exportNodeToPdf(
       backgroundColor: "#ffffff",
       width: A4_CONTENT_PX,
       windowWidth: A4_CONTENT_PX,
-      foreignObjectRendering: true,
       onclone: (clonedDoc) => {
         clonedDoc.documentElement.classList.remove("dark");
         clonedDoc.body.classList.remove("dark");
