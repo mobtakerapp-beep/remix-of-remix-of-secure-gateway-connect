@@ -20,13 +20,6 @@ export async function exportNodeToPdf(
     ),
   );
 
-  // Arabic text can render with collapsed word spacing in html2canvas when
-  // the webfont is still loading. Wait for all document fonts before taking
-  // the raster snapshot so Cairo/Tajawal metrics are stable.
-  if (typeof document !== "undefined" && "fonts" in document) {
-    await document.fonts.ready;
-  }
-
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas-pro"),
     import("jspdf"),
@@ -36,7 +29,6 @@ export async function exportNodeToPdf(
     typeof navigator !== "undefined" &&
     /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   const scale = isMobile ? 1.5 : 2;
-
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = 210;
   const pageHeight = 297;
@@ -45,7 +37,6 @@ export async function exportNodeToPdf(
   const footerSpace = credit ? 9 : 0;
   const usableWidth = pageWidth - margin * 2;
   const usableHeight = pageHeight - margin * 2 - footerSpace;
-
   const A4_CONTENT_PX = Math.round((usableWidth / 25.4) * 96);
   const previousWidth = node.style.width;
   const previousMaxWidth = node.style.maxWidth;
@@ -54,22 +45,11 @@ export async function exportNodeToPdf(
   node.classList.add("pdf-exporting");
   void node.offsetHeight;
 
-  // The class above changes font metrics. Wait one animation frame after the
-  // style change so the browser lays out the exact PDF dimensions before the
-  // element is measured and rasterized.
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  if (typeof document !== "undefined" && "fonts" in document) {
-    await document.fonts.ready;
-  }
-
   const nodeRect = node.getBoundingClientRect();
   const avoidBlocks = Array.from(node.querySelectorAll<HTMLElement>(".break-inside-avoid"))
     .map((element) => {
       const rect = element.getBoundingClientRect();
-      return {
-        top: (rect.top - nodeRect.top) * scale,
-        bottom: (rect.bottom - nodeRect.top) * scale,
-      };
+      return { top: (rect.top - nodeRect.top) * scale, bottom: (rect.bottom - nodeRect.top) * scale };
     })
     .filter((b) => b.bottom > b.top && b.bottom > 0)
     .sort((a, b) => a.top - b.top);
@@ -95,32 +75,20 @@ export async function exportNodeToPdf(
   }
 
   const canvasPageHeight = (usableHeight * canvas.width) / usableWidth;
-
-  const splitsBlock = (end: number, start: number) =>
-    avoidBlocks.some((b) => b.top > start && b.top < end && b.bottom > end);
-
+  const splitsBlock = (end: number, start: number) => avoidBlocks.some((b) => b.top > start && b.top < end && b.bottom > end);
   const cuts: number[] = [0];
   let pageStart = 0;
   let guard = 0;
   while (pageStart < canvas.height && guard++ < 200) {
     const naturalEnd = pageStart + canvasPageHeight;
     if (naturalEnd >= canvas.height) break;
-
     let pageEnd = naturalEnd;
     if (splitsBlock(naturalEnd, pageStart)) {
-      const block = avoidBlocks.find(
-        (b) => b.top > pageStart && b.top < naturalEnd && b.bottom > naturalEnd,
-      )!;
+      const block = avoidBlocks.find((b) => b.top > pageStart && b.top < naturalEnd && b.bottom > naturalEnd)!;
       pageEnd = block.top;
     }
-
     const minFill = pageStart + canvasPageHeight * 0.25;
-    if (pageEnd < minFill) {
-      if (!splitsBlock(naturalEnd, pageStart)) {
-        pageEnd = naturalEnd;
-      }
-    }
-
+    if (pageEnd < minFill && !splitsBlock(naturalEnd, pageStart)) pageEnd = naturalEnd;
     if (pageEnd <= pageStart) break;
     cuts.push(pageEnd);
     pageStart = pageEnd;
@@ -128,7 +96,6 @@ export async function exportNodeToPdf(
 
   const { getIsPremium } = await import("@/lib/premium-flag");
   const watermark = getIsPremium() ? null : "تصميم مروة أبوبكر / أكاديمية التعزيز";
-
   cuts.forEach((start, index) => {
     const end = cuts[index + 1] ?? canvas.height;
     const sliceHeight = Math.max(1, Math.round(end - start));
@@ -139,27 +106,10 @@ export async function exportNodeToPdf(
     if (!ctx) return;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, slice.width, slice.height);
-    ctx.drawImage(
-      canvas,
-      0,
-      Math.round(start),
-      canvas.width,
-      sliceHeight,
-      0,
-      0,
-      canvas.width,
-      sliceHeight,
-    );
+    ctx.drawImage(canvas, 0, Math.round(start), canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
     const imageHeight = (sliceHeight * usableWidth) / canvas.width;
     if (index > 0) pdf.addPage();
-    pdf.addImage(
-      slice.toDataURL("image/jpeg", 0.95),
-      "JPEG",
-      margin,
-      margin,
-      usableWidth,
-      Math.min(imageHeight, usableHeight),
-    );
+    pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, usableWidth, Math.min(imageHeight, usableHeight));
   });
 
   if (watermark) {
@@ -175,28 +125,13 @@ export async function exportNodeToPdf(
     c.height = Math.round(heightMm * dpi);
     const ctx = c.getContext("2d");
     if (ctx) {
-      ctx.font = font;
-      ctx.fillStyle = "rgba(120,120,120,0.18)";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+      ctx.font = font; ctx.fillStyle = "rgba(120,120,120,0.18)"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(watermark, c.width / 2, c.height / 2);
       const dataUrl = c.toDataURL("image/png");
       const pageCount = pdf.getNumberOfPages();
       for (let page = 1; page <= pageCount; page++) {
         pdf.setPage(page);
-        for (let row = 0; row < 5; row++) {
-          pdf.addImage(
-            dataUrl,
-            "PNG",
-            (pageWidth - widthMm) / 2,
-            30 + row * 55,
-            widthMm,
-            heightMm,
-            undefined,
-            "NONE",
-            -20,
-          );
-        }
+        for (let row = 0; row < 5; row++) pdf.addImage(dataUrl, "PNG", (pageWidth - widthMm) / 2, 30 + row * 55, widthMm, heightMm, undefined, "NONE", -20);
       }
     }
   }
@@ -210,28 +145,17 @@ export async function exportNodeToPdf(
       const fontPx = Math.round(heightMm * dpi * 0.72);
       ctx.font = `600 ${fontPx}px "Cairo", "Tajawal", system-ui, sans-serif`;
       const widthMm = Math.max(20, ctx.measureText(credit).width / dpi + 4);
-      c.width = Math.round(widthMm * dpi);
-      c.height = Math.round(heightMm * dpi);
+      c.width = Math.round(widthMm * dpi); c.height = Math.round(heightMm * dpi);
       const ctx2 = c.getContext("2d")!;
-      ctx2.fillStyle = "#ffffff";
-      ctx2.fillRect(0, 0, c.width, c.height);
+      ctx2.fillStyle = "#ffffff"; ctx2.fillRect(0, 0, c.width, c.height);
       ctx2.font = `600 ${fontPx}px "Cairo", "Tajawal", system-ui, sans-serif`;
-      ctx2.fillStyle = "#6b7280";
-      ctx2.textAlign = "center";
-      ctx2.textBaseline = "middle";
+      ctx2.fillStyle = "#6b7280"; ctx2.textAlign = "center"; ctx2.textBaseline = "middle";
       ctx2.fillText(credit, c.width / 2, c.height / 2);
       const dataUrl = c.toDataURL("image/png");
       const pageCount = pdf.getNumberOfPages();
       for (let page = 1; page <= pageCount; page++) {
         pdf.setPage(page);
-        pdf.addImage(
-          dataUrl,
-          "PNG",
-          (pageWidth - widthMm) / 2,
-          pageHeight - margin - heightMm,
-          widthMm,
-          heightMm,
-        );
+        pdf.addImage(dataUrl, "PNG", (pageWidth - widthMm) / 2, pageHeight - margin - heightMm, widthMm, heightMm);
       }
     }
   }
@@ -239,30 +163,12 @@ export async function exportNodeToPdf(
   const blob = pdf.output("blob");
   const safeName = fileName.toLowerCase().endsWith(".pdf") ? fileName : `${fileName}.pdf`;
   const file = new File([blob], safeName, { type: "application/pdf" });
-
-  if (
-    isMobile &&
-    typeof navigator !== "undefined" &&
-    typeof navigator.share === "function" &&
-    typeof navigator.canShare === "function" &&
-    navigator.canShare({ files: [file] })
-  ) {
-    try {
-      await navigator.share({ files: [file], title: safeName });
-      return;
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-    }
+  if (isMobile && typeof navigator !== "undefined" && typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: safeName }); return; }
+    catch (error) { if (error instanceof DOMException && error.name === "AbortError") return; }
   }
-
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = safeName;
-  link.rel = "noopener";
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  const link = document.createElement("a"); link.href = url; link.download = safeName; link.rel = "noopener"; link.style.display = "none";
+  document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
