@@ -37,21 +37,7 @@ function countPdfPages(dataUrl: string): number | null {
   }
 }
 
-async function getYoutubeDurationSeconds(videoId: string): Promise<number | null> {
-  try {
-    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
-      headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html" },
-    });
-    if (!response.ok) return null;
-    const html = await response.text();
-    const match = html.match(/"lengthSeconds":"(\d+)"/);
-    return match ? Number(match[1]) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function countGiftVideosToday(userId: string): Promise<number> {
+async function countGiftGenerationsToday(userId: string): Promise<number> {
   try {
     const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
     const start = new Date();
@@ -60,15 +46,15 @@ async function countGiftVideosToday(userId: string): Promise<number> {
       .from("ai_generation_log")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
-      .eq("mode", "youtube")
+      .in("mode", ["text", "image"])
       .gte("created_at", start.toISOString());
     if (error) {
-      console.error("countGiftVideosToday failed", error);
+      console.error("countGiftGenerationsToday failed", error);
       return 0;
     }
     return count ?? 0;
   } catch (error) {
-    console.error("countGiftVideosToday failed", error);
+    console.error("countGiftGenerationsToday failed", error);
     return 0;
   }
 }
@@ -94,7 +80,7 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     const isOwner = status.generationsLimit >= 999999;
 
     // Gift codes are marked in activation_codes.note with the [GIFT] prefix.
-    // Gifts now allow text + images, plus ONE YouTube video per day.
+    // Gifts allow exactly ONE generation per day, and only text OR image.
     let isGift = false;
     if (!isOwner) {
       const { data: redemption } = await context.supabase
@@ -111,22 +97,15 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
       isGift = note.trim().toUpperCase().startsWith("[GIFT]");
     }
 
-    if (data.mode === "youtube") {
-      if (isGift) {
-        const giftVideosToday = await countGiftVideosToday(context.userId);
-        if (giftVideosToday >= 1) {
-          throw new Error("gift_video_daily_limit");
-        }
-      } else if (!isPremium) {
-        throw new Error("الفيديو متاح في الاشتراك المميز فقط");
+    if (isGift && data.mode !== "text" && data.mode !== "image") {
+      throw new Error("أكواد الهدايا متاحة للنص أو الصورة فقط");
+    }
+
+    if (isGift) {
+      const giftGenerationsToday = await countGiftGenerationsToday(context.userId);
+      if (giftGenerationsToday >= 1) {
+        throw new Error("gift_daily_limit");
       }
-      const url = data.youtubeUrl ?? "";
-      const { parseYoutubeId } = await import("./youtube-url");
-      const videoId = parseYoutubeId(url);
-      if (!videoId) throw new Error("youtube_invalid_url");
-      const duration = await getYoutubeDurationSeconds(videoId);
-      if (duration !== null && duration > 120) throw new Error("الفيديو يجب ألا يتجاوز دقيقتين");
-      if (duration === null) throw new Error("تعذر التحقق من مدة الفيديو، حاولي مرة أخرى");
     }
 
     if (data.mode === "pdf") {
@@ -136,6 +115,24 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
       const pages = data.fileData ? countPdfPages(data.fileData) : null;
       if (pages === null) throw new Error("تعذر قراءة عدد صفحات ملف PDF");
       if (pages > maxPages) throw new Error(`الحد الأقصى لملف PDF في خطتك هو ${maxPages} صفحات`);
+    }
+
+    if (data.mode === "youtube") {
+      if (isGift) throw new Error("أكواد الهدايا لا تشمل الفيديو");
+      if (!isPremium) throw new Error("الفيديو متاح في الاشتراك المميز فقط");
+      const url = data.youtubeUrl ?? "";
+      const { parseYoutubeId } = await import("./youtube-url");
+      const videoId = parseYoutubeId(url);
+      if (!videoId) throw new Error("youtube_invalid_url");
+      const response = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
+        headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html" },
+      });
+      if (!response.ok) throw new Error("تعذر التحقق من مدة الفيديو، حاولي مرة أخرى");
+      const html = await response.text();
+      const match = html.match(/"lengthSeconds":"(\d+)"/);
+      const duration = match ? Number(match[1]) : null;
+      if (duration === null) throw new Error("تعذر التحقق من مدة الفيديو، حاولي مرة أخرى");
+      if (duration > 120) throw new Error("الفيديو يجب ألا يتجاوز دقيقتين");
     }
 
     const { buildLessonPackage, resolveAiConfigs } = await import("./lesson.server");
