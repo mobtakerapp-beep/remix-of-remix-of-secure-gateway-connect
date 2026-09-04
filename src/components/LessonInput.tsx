@@ -1,4 +1,4 @@
-import { BookOpen, FileText, ImageIcon, Loader2, Sparkles, Type, UploadCloud, X, Youtube } from "lucide-react";
+import { BookOpen, Calculator, FileText, ImageIcon, Loader2, Sparkles, Type, UploadCloud, X, Youtube } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/lib/i18n";
 import { lessonTemplates } from "@/lib/lesson-templates";
 import { fmtNum, isRtl } from "@/lib/lesson-types";
@@ -25,6 +26,7 @@ export type GenerateArgs = {
   language: "auto" | "ar" | "en";
   numerals: "auto" | "ar" | "en";
   grade: number;
+  includeMath: boolean;
 };
 
 function readAsDataUrl(file: File) {
@@ -56,6 +58,7 @@ export function LessonInput({
   const [language, setLanguage] = useState<"auto" | "ar" | "en">("auto");
   const [numerals, setNumerals] = useState<"auto" | "ar" | "en">("auto");
   const [grade, setGrade] = useState(5);
+  const [includeMath, setIncludeMath] = useState(false);
   const pdfInput = useRef<HTMLInputElement>(null);
   const imgInput = useRef<HTMLInputElement>(null);
 
@@ -72,12 +75,12 @@ export function LessonInput({
     const counts = { mcq, trueFalse: tf, flashcards: cards };
     if (mode === "text") {
       if (text.trim().length < 10) return void toast.error(t.errShortText);
-      onGenerate({ mode, text, counts, language, numerals, grade });
+      onGenerate({ mode, text, counts, language, numerals, grade, includeMath });
       return;
     }
     if (mode === "youtube") {
       if (!parseYoutubeId(youtubeUrl)) return void toast.error(t.errYoutubeUrl);
-      onGenerate({ mode, youtubeUrl: youtubeUrl.trim(), counts, language, numerals, grade });
+      onGenerate({ mode, youtubeUrl: youtubeUrl.trim(), counts, language, numerals, grade, includeMath });
       return;
     }
     if (!file) return void toast.error(t.errNoFile);
@@ -91,6 +94,7 @@ export function LessonInput({
       language,
       numerals,
       grade,
+      includeMath,
     });
   };
 
@@ -308,6 +312,27 @@ export function LessonInput({
             ))}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">{t.numeralsHint}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-start gap-3">
+          <Switch
+            id="include-math"
+            checked={includeMath}
+            onCheckedChange={setIncludeMath}
+          />
+          <div className="min-w-0">
+            <Label htmlFor="include-math" className="flex cursor-pointer items-center gap-2 text-sm font-bold">
+              <Calculator className="size-4 text-primary" />
+              {lang === "ar" ? "استخدام المعادلات والحسابات" : "Use equations and calculations"}
+            </Label>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {lang === "ar"
+                ? "فعّل هذا الخيار إذا كان الدرس يتضمن معادلات أو قوانين أو كسور أو أسس أو عمليات حسابية."
+                : "Turn this on when the lesson includes equations, formulas, fractions, exponents, or calculations."}
+            </p>
+          </div>
         </div>
       </div>
 
