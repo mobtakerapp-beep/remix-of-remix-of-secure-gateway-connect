@@ -62,10 +62,56 @@ export async function exportNodeToPdf(
       backgroundColor: "#ffffff",
       width: A4_CONTENT_PX,
       windowWidth: A4_CONTENT_PX,
+      foreignObjectRendering: true,
       onclone: (clonedDoc) => {
         clonedDoc.documentElement.classList.remove("dark");
         clonedDoc.body.classList.remove("dark");
         clonedDoc.body.style.background = "#ffffff";
+
+        // html2canvas can measure Arabic text with the wrong glyph metrics when
+        // the app's display font is used during rasterisation. Keep the visual
+        // page unchanged, but use a browser-native Arabic-capable font for the
+        // PDF clone and explicitly reset spacing that can make glyphs/numbers
+        // appear stuck together.
+        const style = clonedDoc.createElement("style");
+        style.textContent = `
+          .pdf-exporting,
+          .pdf-exporting * {
+            font-family: Arial, Tahoma, sans-serif !important;
+            letter-spacing: normal !important;
+            word-spacing: normal !important;
+            font-kerning: normal !important;
+            font-variant-ligatures: normal !important;
+          }
+          .pdf-exporting [dir="rtl"],
+          .pdf-exporting .rtl {
+            direction: rtl !important;
+            unicode-bidi: plaintext !important;
+          }
+          .pdf-exporting .math-fraction,
+          .pdf-exporting .math-sup,
+          .pdf-exporting sup {
+            direction: ltr !important;
+            unicode-bidi: isolate !important;
+          }
+          .pdf-exporting .math-fraction {
+            display: inline-block !important;
+            vertical-align: middle !important;
+            text-align: center !important;
+            line-height: 1.05 !important;
+            min-width: 1.15em !important;
+            margin: 0 .12em !important;
+          }
+          .pdf-exporting .math-fraction > span {
+            display: block !important;
+            white-space: nowrap !important;
+          }
+          .pdf-exporting .math-fraction > span:last-child {
+            border-top: 1.5px solid currentColor !important;
+            padding-top: .08em !important;
+          }
+        `;
+        clonedDoc.head.appendChild(style);
       },
     });
   } finally {
@@ -117,7 +163,7 @@ export async function exportNodeToPdf(
     const heightMm = 14;
     const probe = document.createElement("canvas").getContext("2d");
     const fontPx = Math.round(heightMm * dpi * 0.6);
-    const font = `700 ${fontPx}px "Cairo", "Tajawal", system-ui, sans-serif`;
+    const font = `700 ${fontPx}px Arial, Tahoma, sans-serif`;
     if (probe) probe.font = font;
     const widthMm = Math.max(40, (probe?.measureText(watermark).width ?? 300) / dpi + 6);
     const c = document.createElement("canvas");
@@ -143,12 +189,12 @@ export async function exportNodeToPdf(
     const ctx = c.getContext("2d");
     if (ctx) {
       const fontPx = Math.round(heightMm * dpi * 0.72);
-      ctx.font = `600 ${fontPx}px "Cairo", "Tajawal", system-ui, sans-serif`;
+      ctx.font = `600 ${fontPx}px Arial, Tahoma, sans-serif`;
       const widthMm = Math.max(20, ctx.measureText(credit).width / dpi + 4);
       c.width = Math.round(widthMm * dpi); c.height = Math.round(heightMm * dpi);
       const ctx2 = c.getContext("2d")!;
       ctx2.fillStyle = "#ffffff"; ctx2.fillRect(0, 0, c.width, c.height);
-      ctx2.font = `600 ${fontPx}px "Cairo", "Tajawal", system-ui, sans-serif`;
+      ctx2.font = `600 ${fontPx}px Arial, Tahoma, sans-serif`;
       ctx2.fillStyle = "#6b7280"; ctx2.textAlign = "center"; ctx2.textBaseline = "middle";
       ctx2.fillText(credit, c.width / 2, c.height / 2);
       const dataUrl = c.toDataURL("image/png");
