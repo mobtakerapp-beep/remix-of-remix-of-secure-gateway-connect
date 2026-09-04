@@ -23,12 +23,12 @@ import { exportNodeToPdf } from "@/lib/pdf-export";
 function McqItem({ m, index, answerKey, pkg }: { m: LessonPackage["mcqs"][number]; index: number; answerKey: boolean; pkg: LessonPackage }) {
   return (
     <li className="break-inside-avoid rounded-2xl border border-border p-3">
-      <p className="font-semibold leading-relaxed"><span>{fmtNum(index + 1, pkg.numerals)}. </span><MathText text={m.question} /></p>
+      <p className="font-semibold leading-relaxed"><span>{fmtNum(index + 1, pkg.numerals)}. </span><MathText text={m.question} numerals={pkg.numerals} /></p>
       <div className="mt-2 grid gap-1.5 sm:grid-cols-2 print:grid-cols-2">
         {m.options.map((o, k) => (
           <span key={k} className={answerKey && k === m.answerIndex ? "flex items-center gap-2 font-bold text-emerald" : "flex items-center gap-2"}>
             <span className="grid size-5 shrink-0 place-items-center rounded-full border border-primary/50 text-[11px]">{optionLetter(k, pkg.language)}</span>
-            <MathText text={o} />
+            <MathText text={o} numerals={pkg.numerals} />
           </span>
         ))}
       </div>
@@ -40,7 +40,7 @@ function TfItem({ tf, index, answerKey, pkg }: { tf: LessonPackage["trueFalse"][
   const ar = pkg.language === "ar";
   return (
     <li className="flex items-start justify-between gap-4 break-inside-avoid rounded-2xl border border-border px-3 py-2">
-      <span className="leading-relaxed"><span>{fmtNum(index + 1, pkg.numerals)}. </span><MathText text={tf.statement} /></span>
+      <span className="leading-relaxed"><span>{fmtNum(index + 1, pkg.numerals)}. </span><MathText text={tf.statement} numerals={pkg.numerals} /></span>
       <span className="whitespace-nowrap text-muted-foreground">
         {answerKey ? <b className="text-emerald">{tf.answer ? (ar ? "صح ✔" : "True ✔") : ar ? "خطأ ✘" : "False ✘"}</b> : <><span className="mx-1 inline-block size-4 rounded border border-primary/50 align-middle" /><span className="mx-1 inline-block size-4 rounded border border-primary/50 align-middle" /></>}
       </span>
@@ -48,8 +48,8 @@ function TfItem({ tf, index, answerKey, pkg }: { tf: LessonPackage["trueFalse"][
   );
 }
 
-function FlashItem({ f, answerKey }: { f: LessonPackage["flashcards"][number]; answerKey: boolean }) {
-  return <li className="break-inside-avoid rounded-2xl border border-border p-3"><b className="text-emerald"><MathText text={f.term} /></b><p className="mt-1 leading-relaxed">{answerKey ? <MathText text={f.definition} /> : "________________________"}</p></li>;
+function FlashItem({ f, answerKey, numerals }: { f: LessonPackage["flashcards"][number]; answerKey: boolean; numerals: LessonPackage["numerals"] }) {
+  return <li className="break-inside-avoid rounded-2xl border border-border p-3"><b className="text-emerald"><MathText text={f.term} numerals={numerals} /></b><p className="mt-1 leading-relaxed">{answerKey ? <MathText text={f.definition} numerals={numerals} /> : "________________________"}</p></li>;
 }
 
 function SheetHeader({ pkg, ar, hideMascots }: { pkg: LessonPackage; ar: boolean; hideMascots: boolean }) {
@@ -58,7 +58,7 @@ function SheetHeader({ pkg, ar, hideMascots }: { pkg: LessonPackage; ar: boolean
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className={`text-xs font-bold text-emerald ${ar ? "" : "uppercase tracking-widest"}`}>{ar ? "ورقة عمل" : "Worksheet"}</p>
-          <h2 className="mt-1 font-display text-2xl font-extrabold leading-snug text-primary"><MathText text={pkg.title} /></h2>
+          <h2 className="mt-1 font-display text-2xl font-extrabold leading-snug text-primary"><MathText text={pkg.title} numerals={pkg.numerals} /></h2>
         </div>
         {!hideMascots && <div className="flex shrink-0 items-end gap-1"><img src={catImg} alt="" className="sheet-mascot size-12" /><img src={dogImg} alt="" className="sheet-mascot size-14" /></div>}
       </div>
@@ -101,9 +101,9 @@ function Sheet({ pkg, answerKey, teacher, hideMascots, t }: { pkg: LessonPackage
           <section className="mt-7">
             <div className="break-inside-avoid">
               <h3 className="flex items-center gap-2 font-display text-base font-extrabold text-primary"><span className="grid size-7 place-items-center rounded-full border border-primary bg-primary text-sm text-primary-foreground">{num(3)}</span>{ar ? "المفاهيم والمصطلحات" : "Key vocabulary"}</h3>
-              <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2 print:grid-cols-2"><FlashItem f={pkg.flashcards[0]!} answerKey={answerKey} /></ul>
+              <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2 print:grid-cols-2"><FlashItem f={pkg.flashcards[0]!} answerKey={answerKey} numerals={pkg.numerals} /></ul>
             </div>
-            {pkg.flashcards.length > 1 && <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2 print:grid-cols-2">{pkg.flashcards.slice(1).map((f) => <FlashItem key={f.id} f={f} answerKey={answerKey} />)}</ul>}
+            {pkg.flashcards.length > 1 && <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2 print:grid-cols-2">{pkg.flashcards.slice(1).map((f) => <FlashItem key={f.id} f={f} answerKey={answerKey} numerals={pkg.numerals} />)}</ul>}
           </section>
         )}
         <footer className="mt-9 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4 text-xs text-muted-foreground"><span>{ar ? "بالتوفيق يا أبطال! 🌟" : "Good luck, champions! 🌟"}</span><span>{teacher ? `${t.preparedBy} ${teacher}` : ""}</span><span className="font-semibold text-primary">{ar ? DESIGNER_CREDIT_AR : DESIGNER_CREDIT_EN}</span>{!hideMascots && <img src={partyImg} alt="" className="sheet-mascot size-10" />}</footer>
