@@ -1,8 +1,8 @@
 /**
  * Export a DOM node to a multi-page A4 PDF.
- * Page cuts are moved back to the top of the nearest ".break-inside-avoid"
- * block, so a page always starts at the beginning of a question / section
- * and nothing is sliced in half.
+ * A page never cuts through a marked content block. If a question does not
+ * fit completely in the remaining space, the whole question starts on the
+ * next page.
  */
 export async function exportNodeToPdf(
   node: HTMLElement,
@@ -46,10 +46,18 @@ export async function exportNodeToPdf(
   void node.offsetHeight;
 
   const nodeRect = node.getBoundingClientRect();
-  const avoidBlocks = Array.from(node.querySelectorAll<HTMLElement>(".break-inside-avoid"))
+  // These are the actual blocks that must stay intact. Questions in the
+  // worksheet are marked with .pdf-question; the fallback keeps section
+  // headers/summary blocks intact as well.
+  const avoidBlocks = Array.from(
+    node.querySelectorAll<HTMLElement>(".pdf-question, .break-inside-avoid"),
+  )
     .map((element) => {
       const rect = element.getBoundingClientRect();
-      return { top: (rect.top - nodeRect.top) * scale, bottom: (rect.bottom - nodeRect.top) * scale };
+      return {
+        top: (rect.top - nodeRect.top) * scale,
+        bottom: (rect.bottom - nodeRect.top) * scale,
+      };
     })
     .filter((b) => b.bottom > b.top && b.bottom > 0)
     .sort((a, b) => a.top - b.top);
@@ -62,8 +70,6 @@ export async function exportNodeToPdf(
       backgroundColor: "#ffffff",
       width: A4_CONTENT_PX,
       windowWidth: A4_CONTENT_PX,
-      // Do not use SVG foreignObject rendering here. It can produce an empty
-      // canvas on Android/PWA even though the DOM itself is visible.
       foreignObjectRendering: false,
       onclone: (clonedDoc) => {
         clonedDoc.documentElement.classList.remove("dark");
@@ -118,22 +124,32 @@ export async function exportNodeToPdf(
   }
 
   const canvasPageHeight = (usableHeight * canvas.width) / usableWidth;
-  const splitsBlock = (end: number, start: number) =>
-    avoidBlocks.some((b) => b.top > start && b.top < end && b.bottom > end);
   const cuts: number[] = [0];
   let pageStart = 0;
   let guard = 0;
+
   while (pageStart < canvas.height && guard++ < 200) {
     const naturalEnd = pageStart + canvasPageHeight;
     if (naturalEnd >= canvas.height) break;
-    let pageEnd = naturalEnd;
-    if (splitsBlock(naturalEnd, pageStart)) {
-      const block = avoidBlocks.find((b) => b.top > pageStart && b.top < naturalEnd && b.bottom > naturalEnd)!;
-      pageEnd = block.top;
+
+    // Find the first intact block that would be crossed by this page edge.
+    // Move the edge to the block's TOP, so the entire question begins on the
+    // next page instead of leaving half of it on the current page.
+    const crossing = avoidBlocks.find(
+      (block) => block.top > pageStart + 1 && block.top < naturalEnd && block.bottom > naturalEnd,
+    );
+
+    let pageEnd = crossing ? crossing.top : naturalEnd;
+
+    // If the block starts so close to the top that moving the edge there would
+    // create a nearly empty page, keep the natural edge. This only applies to
+    // an unusually tall block; normal questions always move as one unit.
+    const minimumPageFill = pageStart + canvasPageHeight * 0.25;
+    if (crossing && pageEnd < minimumPageFill && crossing.bottom <= pageStart + canvasPageHeight * 1.05) {
+      pageEnd = naturalEnd;
     }
-    const minFill = pageStart + canvasPageHeight * 0.25;
-    if (pageEnd < minFill && !splitsBlock(naturalEnd, pageStart)) pageEnd = naturalEnd;
-    if (pageEnd <= pageStart) break;
+
+    if (pageEnd <= pageStart + 1) pageEnd = naturalEnd;
     cuts.push(pageEnd);
     pageStart = pageEnd;
   }
@@ -153,7 +169,14 @@ export async function exportNodeToPdf(
     ctx.drawImage(canvas, 0, Math.round(start), canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
     const imageHeight = (sliceHeight * usableWidth) / canvas.width;
     if (index > 0) pdf.addPage();
-    pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, usableWidth, Math.min(imageHeight, usableHeight));
+    pdf.addImage(
+      slice.toDataURL("image/jpeg", 0.95),
+      "JPEG",
+      margin,
+      margin,
+      usableWidth,
+      Math.min(imageHeight, usableHeight),
+    );
   });
 
   if (watermark) {
@@ -169,13 +192,18 @@ export async function exportNodeToPdf(
     c.height = Math.round(heightMm * dpi);
     const ctx = c.getContext("2d");
     if (ctx) {
-      ctx.font = font; ctx.fillStyle = "rgba(120,120,120,0.18)"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = font;
+      ctx.fillStyle = "rgba(120,120,120,0.18)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
       ctx.fillText(watermark, c.width / 2, c.height / 2);
       const dataUrl = c.toDataURL("image/png");
       const pageCount = pdf.getNumberOfPages();
       for (let page = 1; page <= pageCount; page++) {
         pdf.setPage(page);
-        for (let row = 0; row < 5; row++) pdf.addImage(dataUrl, "PNG", (pageWidth - widthMm) / 2, 30 + row * 55, widthMm, heightMm, undefined, "NONE", -20);
+        for (let row = 0; row < 5; row++) {
+          pdf.addImage(dataUrl, "PNG", (pageWidth - widthMm) / 2, 30 + row * 55, widthMm, heightMm, undefined, "NONE", -20);
+        }
       }
     }
   }
@@ -183,19 +211,23 @@ export async function exportNodeToPdf(
   if (credit) {
     const dpi = 4;
     const heightMm = 5;
-    const c = document.createElement("canvas");
-    const ctx = c.getContext("2d");
-    if (ctx) {
+    const c = document.createElement("canvas").getContext("2d");
+    if (c) {
       const fontPx = Math.round(heightMm * dpi * 0.72);
-      ctx.font = `600 ${fontPx}px Arial, Tahoma, sans-serif`;
-      const widthMm = Math.max(20, ctx.measureText(credit).width / dpi + 4);
-      c.width = Math.round(widthMm * dpi); c.height = Math.round(heightMm * dpi);
-      const ctx2 = c.getContext("2d")!;
-      ctx2.fillStyle = "#ffffff"; ctx2.fillRect(0, 0, c.width, c.height);
+      c.font = `600 ${fontPx}px Arial, Tahoma, sans-serif`;
+      const widthMm = Math.max(20, c.measureText(credit).width / dpi + 4);
+      const canvasCredit = document.createElement("canvas");
+      canvasCredit.width = Math.round(widthMm * dpi);
+      canvasCredit.height = Math.round(heightMm * dpi);
+      const ctx2 = canvasCredit.getContext("2d")!;
+      ctx2.fillStyle = "#ffffff";
+      ctx2.fillRect(0, 0, canvasCredit.width, canvasCredit.height);
       ctx2.font = `600 ${fontPx}px Arial, Tahoma, sans-serif`;
-      ctx2.fillStyle = "#6b7280"; ctx2.textAlign = "center"; ctx2.textBaseline = "middle";
-      ctx2.fillText(credit, c.width / 2, c.height / 2);
-      const dataUrl = c.toDataURL("image/png");
+      ctx2.fillStyle = "#6b7280";
+      ctx2.textAlign = "center";
+      ctx2.textBaseline = "middle";
+      ctx2.fillText(credit, canvasCredit.width / 2, canvasCredit.height / 2);
+      const dataUrl = canvasCredit.toDataURL("image/png");
       const pageCount = pdf.getNumberOfPages();
       for (let page = 1; page <= pageCount; page++) {
         pdf.setPage(page);
@@ -207,12 +239,29 @@ export async function exportNodeToPdf(
   const blob = pdf.output("blob");
   const safeName = fileName.toLowerCase().endsWith(".pdf") ? fileName : `${fileName}.pdf`;
   const file = new File([blob], safeName, { type: "application/pdf" });
-  if (isMobile && typeof navigator !== "undefined" && typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: safeName }); return; }
-    catch (error) { if (error instanceof DOMException && error.name === "AbortError") return; }
+  if (
+    isMobile &&
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function" &&
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [file] })
+  ) {
+    try {
+      await navigator.share({ files: [file], title: safeName });
+      return;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
   }
+
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a"); link.href = url; link.download = safeName; link.rel = "noopener"; link.style.display = "none";
-  document.body.appendChild(link); link.click(); link.remove();
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = safeName;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
