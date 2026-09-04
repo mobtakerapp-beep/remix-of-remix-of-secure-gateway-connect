@@ -20,14 +20,18 @@ export async function exportNodeToPdf(
     ),
   );
 
+  // Arabic text can render with collapsed word spacing in html2canvas when
+  // the webfont is still loading. Wait for all document fonts before taking
+  // the raster snapshot so Cairo/Tajawal metrics are stable.
+  if (typeof document !== "undefined" && "fonts" in document) {
+    await document.fonts.ready;
+  }
+
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas-pro"),
     import("jspdf"),
   ]);
 
-  // Mobile/PWA browsers have much lower canvas-memory limits than desktop.
-  // A slightly lower raster scale prevents the export from silently failing
-  // before the PDF is created, while keeping the printed PDF sharp enough.
   const isMobile =
     typeof navigator !== "undefined" &&
     /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
@@ -42,8 +46,6 @@ export async function exportNodeToPdf(
   const usableWidth = pageWidth - margin * 2;
   const usableHeight = pageHeight - margin * 2 - footerSpace;
 
-  // Render the sheet at true A4 content width (96dpi) so text fills the page
-  // instead of being shrunk down from a wide desktop layout.
   const A4_CONTENT_PX = Math.round((usableWidth / 25.4) * 96);
   const previousWidth = node.style.width;
   const previousMaxWidth = node.style.maxWidth;
@@ -51,6 +53,14 @@ export async function exportNodeToPdf(
   node.style.maxWidth = `${A4_CONTENT_PX}px`;
   node.classList.add("pdf-exporting");
   void node.offsetHeight;
+
+  // The class above changes font metrics. Wait one animation frame after the
+  // style change so the browser lays out the exact PDF dimensions before the
+  // element is measured and rasterized.
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  if (typeof document !== "undefined" && "fonts" in document) {
+    await document.fonts.ready;
+  }
 
   const nodeRect = node.getBoundingClientRect();
   const avoidBlocks = Array.from(node.querySelectorAll<HTMLElement>(".break-inside-avoid"))
@@ -226,9 +236,6 @@ export async function exportNodeToPdf(
     }
   }
 
-  // pdf.save() is unreliable inside some installed PWAs, especially on iOS.
-  // Build the Blob ourselves and use the best mobile-supported handoff:
-  // native share for a PDF file, then a normal download, then opening the PDF.
   const blob = pdf.output("blob");
   const safeName = fileName.toLowerCase().endsWith(".pdf") ? fileName : `${fileName}.pdf`;
   const file = new File([blob], safeName, { type: "application/pdf" });
@@ -244,7 +251,6 @@ export async function exportNodeToPdf(
       await navigator.share({ files: [file], title: safeName });
       return;
     } catch (error) {
-      // User closing the share sheet is not an export failure.
       if (error instanceof DOMException && error.name === "AbortError") return;
     }
   }
@@ -258,7 +264,5 @@ export async function exportNodeToPdf(
   document.body.appendChild(link);
   link.click();
   link.remove();
-
-  // Give browsers time to start the download before releasing the Blob URL.
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
