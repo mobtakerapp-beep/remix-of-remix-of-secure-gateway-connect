@@ -77,25 +77,19 @@ export const submitShareResult = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }): Promise<{ ok: true }> => {
-    const { createClient } = await import("@supabase/supabase-js");
-    const url = process.env["SUPABASE_URL"] || import.meta.env["VITE_SUPABASE_URL"];
-    const key =
-      process.env["SUPABASE_PUBLISHABLE_KEY"] || import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
-    if (!url || !key) throw new Error("Backend configuration is unavailable");
-    const client = createClient(url, key, {
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-      global: {
-        fetch: (input, init) => {
-          const headers = new Headers(init?.headers);
-          if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
-            headers.delete("Authorization");
-          }
-          headers.set("apikey", key);
-          return fetch(input, { ...init, headers });
-        },
-      },
-    });
-    const { error } = await client.from("lesson_share_results" as never).insert({
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
+
+    // The student is intentionally unauthenticated. Use the server-side
+    // Supabase service key so RLS cannot reject the public result submission.
+    const { data: share, error: shareError } = await supabaseAdmin
+      .from("lesson_shares" as never)
+      .select("token")
+      .eq("token", data.token)
+      .maybeSingle();
+    if (shareError) throw new Error(shareError.message);
+    if (!share) throw new Error("not_found");
+
+    const { error } = await supabaseAdmin.from("lesson_share_results" as never).insert({
       share_token: data.token,
       student_name: data.studentName.trim(),
       score: data.score,
