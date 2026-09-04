@@ -22,7 +22,7 @@ import { exportNodeToPdf } from "@/lib/pdf-export";
 
 function McqItem({ m, index, answerKey, pkg }: { m: LessonPackage["mcqs"][number]; index: number; answerKey: boolean; pkg: LessonPackage }) {
   return (
-    <li className="break-inside-avoid rounded-2xl border border-border p-3">
+    <li className="pdf-question break-inside-avoid rounded-2xl border border-border p-3">
       <p className="font-semibold leading-relaxed"><span>{fmtNum(index + 1, pkg.numerals)}. </span><MathText text={m.question} numerals={pkg.numerals} /></p>
       <div className="mt-2 grid gap-1.5 sm:grid-cols-2 print:grid-cols-2">
         {m.options.map((o, k) => (
@@ -39,7 +39,7 @@ function McqItem({ m, index, answerKey, pkg }: { m: LessonPackage["mcqs"][number
 function TfItem({ tf, index, answerKey, pkg }: { tf: LessonPackage["trueFalse"][number]; index: number; answerKey: boolean; pkg: LessonPackage }) {
   const ar = pkg.language === "ar";
   return (
-    <li className="flex items-start justify-between gap-4 break-inside-avoid rounded-2xl border border-border px-3 py-2">
+    <li className="pdf-question flex items-start justify-between gap-4 break-inside-avoid rounded-2xl border border-border px-3 py-2">
       <span className="leading-relaxed"><span>{fmtNum(index + 1, pkg.numerals)}. </span><MathText text={tf.statement} numerals={pkg.numerals} /></span>
       <span className="whitespace-nowrap text-muted-foreground">
         {answerKey ? <b className="text-emerald">{tf.answer ? (ar ? "صح ✔" : "True ✔") : ar ? "خطأ ✘" : "False ✘"}</b> : <><span className="mx-1 inline-block size-4 rounded border border-primary/50 align-middle" /><span className="mx-1 inline-block size-4 rounded border border-primary/50 align-middle" /></>}
@@ -49,7 +49,7 @@ function TfItem({ tf, index, answerKey, pkg }: { tf: LessonPackage["trueFalse"][
 }
 
 function FlashItem({ f, answerKey, numerals }: { f: LessonPackage["flashcards"][number]; answerKey: boolean; numerals: LessonPackage["numerals"] }) {
-  return <li className="break-inside-avoid rounded-2xl border border-border p-3"><b className="text-emerald"><MathText text={f.term} numerals={numerals} /></b><p className="mt-1 leading-relaxed">{answerKey ? <MathText text={f.definition} numerals={numerals} /> : "________________________"}</p></li>;
+  return <li className="pdf-question break-inside-avoid rounded-2xl border border-border p-3"><b className="text-emerald"><MathText text={f.term} numerals={numerals} /></b><p className="mt-1 leading-relaxed">{answerKey ? <MathText text={f.definition} numerals={numerals} /> : "________________________"}</p></li>;
 }
 
 function SheetHeader({ pkg, ar, hideMascots }: { pkg: LessonPackage; ar: boolean; hideMascots: boolean }) {
@@ -57,7 +57,7 @@ function SheetHeader({ pkg, ar, hideMascots }: { pkg: LessonPackage; ar: boolean
     <header className="border-b-4 border-double border-primary px-10 pb-5 pt-8 print:px-0 print:pt-0">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className={`text-xs font-bold text-emerald ${ar ? "" : "uppercase tracking-widest"}`}>{ar ? "اختبار" : "Test"}</p>
+          <p className={`text-xs font-bold text-emerald ${ar ? "" : "uppercase tracking-widest"}`}>{ar ? "ورقة عمل" : "Worksheet"}</p>
           <h2 className="mt-1 font-display text-2xl font-extrabold leading-snug text-primary"><MathText text={pkg.title} numerals={pkg.numerals} /></h2>
         </div>
         {!hideMascots && <div className="flex shrink-0 items-end gap-1"><img src={catImg} alt="" className="sheet-mascot size-12" /><img src={dogImg} alt="" className="sheet-mascot size-14" /></div>}
