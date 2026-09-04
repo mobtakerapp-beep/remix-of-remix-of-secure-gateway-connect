@@ -62,16 +62,14 @@ export async function exportNodeToPdf(
       backgroundColor: "#ffffff",
       width: A4_CONTENT_PX,
       windowWidth: A4_CONTENT_PX,
+      // Keep the rendering mode that was working before the student-results change.
+      // It preserves the Arabic/math DOM rendering used by the lesson PDF.
+      foreignObjectRendering: true,
       onclone: (clonedDoc) => {
         clonedDoc.documentElement.classList.remove("dark");
         clonedDoc.body.classList.remove("dark");
         clonedDoc.body.style.background = "#ffffff";
 
-        // html2canvas can measure Arabic text with the wrong glyph metrics when
-        // the app's display font is used during rasterisation. Keep the visual
-        // page unchanged, but use a browser-native Arabic-capable font for the
-        // PDF clone and explicitly reset spacing that can make glyphs/numbers
-        // appear stuck together.
         const style = clonedDoc.createElement("style");
         style.textContent = `
           .pdf-exporting,
