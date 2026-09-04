@@ -126,7 +126,7 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
     if (isGift) {
       const giftGenerationsToday = await countGiftGenerationsToday(context.userId);
       if (giftGenerationsToday >= 1) {
-        throw new Error("gift_daily_limit");
+        throw new Error("لقد انتهى الحد اليومي للهدية. يمكنك استخدام هدية جديدة غدًا.");
       }
     }
 
@@ -141,11 +141,11 @@ export const generateLessonPackage = createServerFn({ method: "POST" })
 
     if (data.mode === "youtube") {
       if (isGift) throw new Error("أكواد الهدايا لا تشمل الفيديو");
-      if (!isPremium) throw new Error("الفيديو متاح في الاشتراك المميز فقط");
+      if (!isPremium) throw new Error("ميزة الفيديو متاحة في الاشتراك المميز فقط. اشترك في الخطة المميزة للاستفادة منها.");
       if (!isOwner) {
         const videosToday = await countPremiumVideosToday(context.userId);
         if (videosToday >= 1) {
-          throw new Error("premium_video_daily_limit");
+          throw new Error("لقد انتهى الحد اليومي للفيديو. يمكنك إنشاء فيديو جديد غدًا.");
         }
       }
       const url = data.youtubeUrl ?? "";
