@@ -74,23 +74,38 @@ export async function exportNodeToPdf(
             font-kerning: normal !important;
             font-variant-ligatures: normal !important;
           }
+          /* Keep Arabic in one normal RTL flow so glyphs shape and join correctly. */
           .pdf-exporting [dir="rtl"],
           .pdf-exporting .rtl {
             direction: rtl !important;
             text-align: right !important;
-            unicode-bidi: isolate !important;
+            unicode-bidi: normal !important;
           }
           .pdf-exporting [dir="ltr"],
           .pdf-exporting .ltr {
             direction: ltr !important;
             text-align: left !important;
-            unicode-bidi: isolate !important;
+            unicode-bidi: normal !important;
           }
+          .pdf-exporting .pdf-question > p,
+          .pdf-exporting .pdf-question > span {
+            white-space: normal !important;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
+          }
+          /* MathJax must remain an intact inline object inside Arabic questions. */
           .pdf-exporting mjx-container,
           .pdf-exporting mjx-container[display="true"] {
             direction: ltr !important;
             unicode-bidi: isolate !important;
             white-space: nowrap !important;
+            display: inline-block !important;
+            vertical-align: middle !important;
+            margin: 0 0.12em !important;
+          }
+          .pdf-exporting mjx-container svg {
+            display: inline-block !important;
+            overflow: visible !important;
           }
           .pdf-exporting .pdf-question {
             break-inside: avoid !important;
