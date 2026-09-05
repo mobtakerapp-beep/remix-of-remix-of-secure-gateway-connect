@@ -88,6 +88,14 @@ function normalizeArabicMath(value: string) {
     .replace(/∜[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\\sqrt[٤]{${radicand}}`)
     .replace(/√[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\\sqrt{${radicand}}`);
 
+  // Arabic mathematical variables take their superscript on the visual left.
+  // Also accept the accidental "\\س" form sometimes produced by the generator.
+  normalized = normalized
+    .replace(/\\([سصع])\s*\^\{([^{}]+)\}/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
+    .replace(/\\([سصع])\s*\^([0-9٠-٩]+)/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
+    .replace(/([سصع])\s*\^\{([^{}]+)\}/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
+    .replace(/([سصع])\s*\^([0-9٠-٩]+)/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`);
+
   // In Arabic mathematical content, the visible school notation for the
   // limit operator is "نها" rather than the Latin "lim". Keep the standard
   // LaTeX command as input, but localize only what the learner sees.
