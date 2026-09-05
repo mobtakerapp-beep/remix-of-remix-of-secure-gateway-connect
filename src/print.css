@@ -81,8 +81,7 @@
     height: auto !important;
   }
 
-  /* Keep Lucide badges/icons as real icons in print; don't let generic SVG
-     sizing collapse them into thin arrow-like shapes. */
+  /* Preserve the original Lucide icon geometry in printed output. */
   .worksheet-export svg.lucide {
     display: inline-block !important;
     width: 1rem !important;
@@ -99,8 +98,7 @@
     width: auto !important;
   }
 
-  /* Keep each mathematical expression together while allowing the Arabic
-     question itself to wrap naturally only when the line is genuinely long. */
+  /* Keep the question text inline; allow wrapping only at normal text spaces. */
   .worksheet-export .pdf-question > p,
   .worksheet-export .pdf-question > span {
     white-space: normal !important;
@@ -108,26 +106,21 @@
     overflow-wrap: normal !important;
   }
 
+  /* Never split a single MathJax expression while the surrounding sentence wraps. */
   .worksheet-export .pdf-question mjx-container {
     white-space: nowrap !important;
   }
 
-  .worksheet-export mjx-container,
+  /* Do not apply generic SVG sizing to MathJax: its SVG dimensions control
+     fractions, roots, powers and arrows. */
+  .worksheet-export mjx-container {
+    direction: ltr !important;
+    unicode-bidi: isolate !important;
+  }
+
   .worksheet-export mjx-container[display="true"] {
     direction: ltr !important;
     unicode-bidi: isolate !important;
-  }
-
-  .worksheet-export .math-fraction,
-  .worksheet-export .math-sup,
-  .worksheet-export sup {
-    direction: ltr !important;
-    unicode-bidi: isolate !important;
-  }
-
-  .worksheet-export .math-fraction {
-    display: inline-flex !important;
-    vertical-align: middle !important;
   }
 
   .worksheet-export .overflow-hidden,
