@@ -75,7 +75,7 @@ export async function exportNodeToPdf(
         style.textContent = `
           .pdf-exporting,
           .pdf-exporting * {
-            font-family: Arial, Tahoma, sans-serif !important;
+            font-family: "Cairo", Tahoma, Arial, sans-serif !important;
             letter-spacing: normal !important;
             word-spacing: normal !important;
             font-kerning: normal !important;
@@ -84,7 +84,19 @@ export async function exportNodeToPdf(
           .pdf-exporting [dir="rtl"],
           .pdf-exporting .rtl {
             direction: rtl !important;
+            text-align: right !important;
             unicode-bidi: plaintext !important;
+          }
+          .pdf-exporting [dir="ltr"],
+          .pdf-exporting .ltr {
+            direction: ltr !important;
+            text-align: left !important;
+            unicode-bidi: plaintext !important;
+          }
+          .pdf-exporting mjx-container,
+          .pdf-exporting mjx-container[display="true"] {
+            direction: ltr !important;
+            unicode-bidi: isolate !important;
           }
           .pdf-exporting .math-fraction,
           .pdf-exporting .math-sup,
@@ -177,7 +189,7 @@ export async function exportNodeToPdf(
     const heightMm = 14;
     const probe = document.createElement("canvas").getContext("2d");
     const fontPx = Math.round(heightMm * dpi * 0.6);
-    const font = `700 ${fontPx}px Arial, Tahoma, sans-serif`;
+    const font = `700 ${fontPx}px "Cairo", Tahoma, Arial, sans-serif`;
     if (probe) probe.font = font;
     const widthMm = Math.max(40, (probe?.measureText(watermark).width ?? 300) / dpi + 6);
     const c = document.createElement("canvas");
@@ -207,7 +219,7 @@ export async function exportNodeToPdf(
     const c = document.createElement("canvas").getContext("2d");
     if (c) {
       const fontPx = Math.round(heightMm * dpi * 0.72);
-      c.font = `600 ${fontPx}px Arial, Tahoma, sans-serif`;
+      c.font = `600 ${fontPx}px "Cairo", Tahoma, Arial, sans-serif`;
       const widthMm = Math.max(20, c.measureText(credit).width / dpi + 4);
       const canvasCredit = document.createElement("canvas");
       canvasCredit.width = Math.round(widthMm * dpi);
@@ -215,7 +227,7 @@ export async function exportNodeToPdf(
       const ctx2 = canvasCredit.getContext("2d")!;
       ctx2.fillStyle = "#ffffff";
       ctx2.fillRect(0, 0, canvasCredit.width, canvasCredit.height);
-      ctx2.font = `600 ${fontPx}px Arial, Tahoma, sans-serif`;
+      ctx2.font = `600 ${fontPx}px "Cairo", Tahoma, Arial, sans-serif`;
       ctx2.fillStyle = "#6b7280";
       ctx2.textAlign = "center";
       ctx2.textBaseline = "middle";
