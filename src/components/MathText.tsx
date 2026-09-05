@@ -71,9 +71,12 @@ function normalizeArabicMath(value: string) {
     "⁵": "٥", "⁶": "٦", "⁷": "٧", "⁸": "٨", "⁹": "٩",
   };
 
-  let normalized = value.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (run) =>
-    `^{${Array.from(run).map((digit) => superscriptMap[digit] ?? digit).join("")}}`,
-  );
+  let normalized = value
+    .normalize("NFC")
+    .replace(/[\u200B\u200D\uFEFF]/g, "")
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (run) =>
+      `^{${Array.from(run).map((digit) => superscriptMap[digit] ?? digit).join("")}}`,
+    );
 
   normalized = normalized
     .replace(/(^|[^A-Za-z])([xX])([^A-Za-z]|$)/g, "$1س$3")
@@ -81,9 +84,16 @@ function normalizeArabicMath(value: string) {
     .replace(/(^|[^A-Za-z])([zZ])([^A-Za-z]|$)/g, "$1ع$3");
 
   normalized = normalized
-    .replace(/∛[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٣]{${radicand}}`)
-    .replace(/∜[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٤]{${radicand}}`)
-    .replace(/√[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt{${radicand}}`);
+    .replace(/∛[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\\sqrt[٣]{${radicand}}`)
+    .replace(/∜[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\\sqrt[٤]{${radicand}}`)
+    .replace(/√[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\\sqrt{${radicand}}`);
+
+  // In Arabic mathematical content, the visible school notation for the
+  // limit operator is "نها" rather than the Latin "lim". Keep the standard
+  // LaTeX command as input, but localize only what the learner sees.
+  if (/[\u0600-\u06FF]/.test(normalized)) {
+    normalized = normalized.replace(/\\lim\b/g, String.raw`\\text{نها}`);
+  }
 
   return normalized;
 }
@@ -105,7 +115,8 @@ function normalizeDigits(value: string, numerals: Numerals) {
  */
 export function MathText({ text, className, numerals = "auto" }: Props) {
   const ref = useRef<HTMLSpanElement>(null);
-  const mathSource = numerals === "ar" ? normalizeArabicMath(text) : text;
+  const hasArabic = /[\u0600-\u06FF]/.test(text);
+  const mathSource = hasArabic ? normalizeArabicMath(text) : text.normalize("NFC");
   const normalized = normalizeDigits(mathSource, numerals);
 
   useEffect(() => {
@@ -134,8 +145,8 @@ export function MathText({ text, className, numerals = "auto" }: Props) {
     <span
       ref={ref}
       className={className}
-      dir="auto"
-      style={{ unicodeBidi: "plaintext" }}
+      dir={hasArabic ? "rtl" : "ltr"}
+      style={{ direction: hasArabic ? "rtl" : "ltr", unicodeBidi: "plaintext" }}
     />
   );
 }
