@@ -7,6 +7,8 @@ export async function exportNodeToPdf(
   fileName: string,
   options?: { credit?: string },
 ) {
+  if (typeof document !== "undefined" && document.fonts?.ready) await document.fonts.ready;
+
   await Promise.all(
     Array.from(node.querySelectorAll("img")).map((image) =>
       image.complete
@@ -23,9 +25,7 @@ export async function exportNodeToPdf(
     import("jspdf"),
   ]);
 
-  const isMobile =
-    typeof navigator !== "undefined" &&
-    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   const scale = isMobile ? 1.5 : 2;
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = 210;
@@ -44,15 +44,10 @@ export async function exportNodeToPdf(
   void node.offsetHeight;
 
   const nodeRect = node.getBoundingClientRect();
-  const questionBlocks = Array.from(
-    node.querySelectorAll<HTMLElement>(".pdf-question"),
-  )
+  const questionBlocks = Array.from(node.querySelectorAll<HTMLElement>(".pdf-question"))
     .map((element) => {
       const rect = element.getBoundingClientRect();
-      return {
-        top: (rect.top - nodeRect.top) * scale,
-        bottom: (rect.bottom - nodeRect.top) * scale,
-      };
+      return { top: (rect.top - nodeRect.top) * scale, bottom: (rect.bottom - nodeRect.top) * scale };
     })
     .filter((b) => b.bottom > b.top && b.bottom > 0)
     .sort((a, b) => a.top - b.top);
@@ -70,12 +65,10 @@ export async function exportNodeToPdf(
         clonedDoc.documentElement.classList.remove("dark");
         clonedDoc.body.classList.remove("dark");
         clonedDoc.body.style.background = "#ffffff";
-
         const style = clonedDoc.createElement("style");
         style.textContent = `
           .pdf-exporting,
           .pdf-exporting * {
-            font-family: "Cairo", Tahoma, Arial, sans-serif !important;
             letter-spacing: normal !important;
             word-spacing: normal !important;
             font-kerning: normal !important;
@@ -85,40 +78,19 @@ export async function exportNodeToPdf(
           .pdf-exporting .rtl {
             direction: rtl !important;
             text-align: right !important;
-            unicode-bidi: plaintext !important;
+            unicode-bidi: isolate !important;
           }
           .pdf-exporting [dir="ltr"],
           .pdf-exporting .ltr {
             direction: ltr !important;
             text-align: left !important;
-            unicode-bidi: plaintext !important;
+            unicode-bidi: isolate !important;
           }
           .pdf-exporting mjx-container,
           .pdf-exporting mjx-container[display="true"] {
             direction: ltr !important;
             unicode-bidi: isolate !important;
-          }
-          .pdf-exporting .math-fraction,
-          .pdf-exporting .math-sup,
-          .pdf-exporting sup {
-            direction: ltr !important;
-            unicode-bidi: isolate !important;
-          }
-          .pdf-exporting .math-fraction {
-            display: inline-block !important;
-            vertical-align: middle !important;
-            text-align: center !important;
-            line-height: 1.05 !important;
-            min-width: 1.15em !important;
-            margin: 0 .12em !important;
-          }
-          .pdf-exporting .math-fraction > span {
-            display: block !important;
             white-space: nowrap !important;
-          }
-          .pdf-exporting .math-fraction > span:last-child {
-            border-top: 1.5px solid currentColor !important;
-            padding-top: .08em !important;
           }
           .pdf-exporting .pdf-question {
             break-inside: avoid !important;
@@ -138,23 +110,12 @@ export async function exportNodeToPdf(
   const cuts: number[] = [0];
   let pageStart = 0;
   let guard = 0;
-
   while (pageStart < canvas.height && guard++ < 200) {
     const naturalEnd = pageStart + canvasPageHeight;
     if (naturalEnd >= canvas.height) break;
-
-    // Keep the complete question together. If its TOP is before the natural
-    // page edge but its BOTTOM is after it, start the question on the next page.
-    const crossing = questionBlocks.find(
-      (block) =>
-        block.top > pageStart + 1 &&
-        block.top < naturalEnd &&
-        block.bottom > naturalEnd,
-    );
-
+    const crossing = questionBlocks.find((block) => block.top > pageStart + 1 && block.top < naturalEnd && block.bottom > naturalEnd);
     const pageEnd = crossing ? crossing.top : naturalEnd;
     if (pageEnd <= pageStart + 1) break;
-
     cuts.push(pageEnd);
     pageStart = pageEnd;
   }
@@ -174,14 +135,7 @@ export async function exportNodeToPdf(
     ctx.drawImage(canvas, 0, Math.round(start), canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
     const imageHeight = (sliceHeight * usableWidth) / canvas.width;
     if (index > 0) pdf.addPage();
-    pdf.addImage(
-      slice.toDataURL("image/jpeg", 0.95),
-      "JPEG",
-      margin,
-      margin,
-      usableWidth,
-      Math.min(imageHeight, usableHeight),
-    );
+    pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, usableWidth, Math.min(imageHeight, usableHeight));
   });
 
   if (watermark) {
@@ -189,7 +143,7 @@ export async function exportNodeToPdf(
     const heightMm = 14;
     const probe = document.createElement("canvas").getContext("2d");
     const fontPx = Math.round(heightMm * dpi * 0.6);
-    const font = `700 ${fontPx}px "Cairo", Tahoma, Arial, sans-serif`;
+    const font = `700 ${fontPx}px Cairo, Tahoma, Arial, sans-serif`;
     if (probe) probe.font = font;
     const widthMm = Math.max(40, (probe?.measureText(watermark).width ?? 300) / dpi + 6);
     const c = document.createElement("canvas");
@@ -206,9 +160,7 @@ export async function exportNodeToPdf(
       const pageCount = pdf.getNumberOfPages();
       for (let page = 1; page <= pageCount; page++) {
         pdf.setPage(page);
-        for (let row = 0; row < 5; row++) {
-          pdf.addImage(dataUrl, "PNG", (pageWidth - widthMm) / 2, 30 + row * 55, widthMm, heightMm, undefined, "NONE", -20);
-        }
+        for (let row = 0; row < 5; row++) pdf.addImage(dataUrl, "PNG", (pageWidth - widthMm) / 2, 30 + row * 55, widthMm, heightMm, undefined, "NONE", -20);
       }
     }
   }
@@ -219,7 +171,7 @@ export async function exportNodeToPdf(
     const c = document.createElement("canvas").getContext("2d");
     if (c) {
       const fontPx = Math.round(heightMm * dpi * 0.72);
-      c.font = `600 ${fontPx}px "Cairo", Tahoma, Arial, sans-serif`;
+      c.font = `600 ${fontPx}px Cairo, Tahoma, Arial, sans-serif`;
       const widthMm = Math.max(20, c.measureText(credit).width / dpi + 4);
       const canvasCredit = document.createElement("canvas");
       canvasCredit.width = Math.round(widthMm * dpi);
@@ -227,7 +179,7 @@ export async function exportNodeToPdf(
       const ctx2 = canvasCredit.getContext("2d")!;
       ctx2.fillStyle = "#ffffff";
       ctx2.fillRect(0, 0, canvasCredit.width, canvasCredit.height);
-      ctx2.font = `600 ${fontPx}px "Cairo", Tahoma, Arial, sans-serif`;
+      ctx2.font = `600 ${fontPx}px Cairo, Tahoma, Arial, sans-serif`;
       ctx2.fillStyle = "#6b7280";
       ctx2.textAlign = "center";
       ctx2.textBaseline = "middle";
@@ -244,13 +196,7 @@ export async function exportNodeToPdf(
   const blob = pdf.output("blob");
   const safeName = fileName.toLowerCase().endsWith(".pdf") ? fileName : `${fileName}.pdf`;
   const file = new File([blob], safeName, { type: "application/pdf" });
-  if (
-    isMobile &&
-    typeof navigator !== "undefined" &&
-    typeof navigator.share === "function" &&
-    typeof navigator.canShare === "function" &&
-    navigator.canShare({ files: [file] })
-  ) {
+  if (isMobile && typeof navigator !== "undefined" && typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: safeName });
       return;
@@ -258,7 +204,6 @@ export async function exportNodeToPdf(
       if (error instanceof DOMException && error.name === "AbortError") return;
     }
   }
-
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
