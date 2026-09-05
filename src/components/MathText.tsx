@@ -33,73 +33,28 @@ function loadMathJax() {
       existing.addEventListener("error", () => reject(new Error("MathJax failed to load")), { once: true });
       return;
     }
-
     const config = document.createElement("script");
     config.type = "text/javascript";
-    config.text = `window.MathJax = {
-      tex: {
-        inlineMath: [['\\\\(', '\\\\)'], ['$', '$']],
-        displayMath: [['\\\\[', '\\\\]'], ['$$', '$$']],
-        processEscapes: true,
-        processEnvironments: true,
-        tags: 'ams'
-      },
-      svg: { fontCache: 'global' },
-      options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
-    };`;
+    config.text = `window.MathJax = { tex: { inlineMath: [['\\\\(', '\\\\)'], ['$', '$']], displayMath: [['\\\\[', '\\\\]'], ['$$', '$$']], processEscapes: true, processEnvironments: true, tags: 'ams' }, svg: { fontCache: 'global' }, options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] } };`;
     document.head.appendChild(config);
-
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js";
     script.async = true;
     script.dataset.mathjax = "true";
-    script.onload = () => {
-      const mj = window.MathJax;
-      if (mj?.typesetPromise) resolve(mj);
-      else reject(new Error("MathJax did not initialize"));
-    };
+    script.onload = () => window.MathJax?.typesetPromise ? resolve(window.MathJax) : reject(new Error("MathJax did not initialize"));
     script.onerror = () => reject(new Error("MathJax failed to load"));
     document.head.appendChild(script);
   });
-
   return mathJaxPromise;
 }
 
 function normalizeArabicMath(value: string) {
-  const superscriptMap: Record<string, string> = {
-    "⁰": "٠", "¹": "١", "²": "٢", "³": "٣", "⁴": "٤",
-    "⁵": "٥", "⁶": "٦", "⁷": "٧", "⁸": "٨", "⁹": "٩",
-  };
-
-  let normalized = value
-    .normalize("NFC")
-    .replace(/[\u200B\u200D\uFEFF]/g, "")
-    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (run) =>
-      `^{${Array.from(run).map((digit) => superscriptMap[digit] ?? digit).join("")}}`,
-    );
-
-  normalized = normalized
-    .replace(/(^|[^A-Za-z])([xX])([^A-Za-z]|$)/g, "$1س$3")
-    .replace(/(^|[^A-Za-z])([yY])([^A-Za-z]|$)/g, "$1ص$3")
-    .replace(/(^|[^A-Za-z])([zZ])([^A-Za-z]|$)/g, "$1ع$3");
-
-  normalized = normalized
-    .replace(/∛[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٣]{${radicand}}`)
-    .replace(/∜[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٤]{${radicand}}`)
-    .replace(/√[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt{${radicand}}`);
-
-  // Arabic variables: put their exponent visually on the left without
-  // changing normal LaTeX fractions or other mathematical structures.
-  normalized = normalized
-    .replace(/\\([سصع])\s*\^\{([^{}]+)\}/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
-    .replace(/\\([سصع])\s*\^([0-9٠-٩]+)/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
-    .replace(/([سصع])\s*\^\{([^{}]+)\}/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
-    .replace(/([سصع])\s*\^([0-9٠-٩]+)/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`);
-
-  if (/[\u0600-\u06FF]/.test(normalized)) {
-    normalized = normalized.replace(/\\lim\b/g, String.raw`\text{نها}`);
-  }
-
+  const superscriptMap: Record<string, string> = { "⁰": "٠", "¹": "١", "²": "٢", "³": "٣", "⁴": "٤", "⁵": "٥", "⁶": "٦", "⁷": "٧", "⁸": "٨", "⁹": "٩" };
+  let normalized = value.normalize("NFC").replace(/[\u200B\u200D\uFEFF]/g, "").replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (run) => `^{${Array.from(run).map((digit) => superscriptMap[digit] ?? digit).join("")}}`);
+  normalized = normalized.replace(/(^|[^A-Za-z])([xX])([^A-Za-z]|$)/g, "$1س$3").replace(/(^|[^A-Za-z])([yY])([^A-Za-z]|$)/g, "$1ص$3").replace(/(^|[^A-Za-z])([zZ])([^A-Za-z]|$)/g, "$1ع$3");
+  normalized = normalized.replace(/∛[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٣]{${radicand}}`).replace(/∜[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٤]{${radicand}}`).replace(/√[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt{${radicand}}`);
+  normalized = normalized.replace(/\\([سصع])\s*\^\{([^{}]+)\}/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`).replace(/\\([سصع])\s*\^([0-9٠-٩]+)/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`).replace(/([سصع])\s*\^\{([^{}]+)\}/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`).replace(/([سصع])\s*\^([0-9٠-٩]+)/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`);
+  if (/[\u0600-\u06FF]/.test(normalized)) normalized = normalized.replace(/\\lim\b/g, String.raw`\text{نها}`);
   return normalized;
 }
 
@@ -114,40 +69,17 @@ export function MathText({ text, className, numerals = "auto" }: Props) {
   const hasArabic = /[\u0600-\u06FF]/.test(text);
   const mathSource = hasArabic ? normalizeArabicMath(text) : text.normalize("NFC");
   const normalized = normalizeDigits(mathSource, numerals);
-
   useEffect(() => {
     let cancelled = false;
     const element = ref.current;
     if (!element) return;
-
     element.replaceChildren(document.createTextNode(normalized));
-
-    void loadMathJax()
-      .then(async (mathJax) => {
-        if (cancelled || !ref.current) return;
-        await mathJax.startup?.promise;
-        if (!cancelled && ref.current) await mathJax.typesetPromise([ref.current]);
-      })
-      .catch((error) => {
-        console.warn("Math rendering unavailable; showing source notation.", error);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    void loadMathJax().then(async (mathJax) => {
+      if (cancelled || !ref.current) return;
+      await mathJax.startup?.promise;
+      if (!cancelled && ref.current) await mathJax.typesetPromise([ref.current]);
+    }).catch((error) => console.warn("Math rendering unavailable; showing source notation.", error));
+    return () => { cancelled = true; };
   }, [normalized]);
-
-  return (
-    <span
-      ref={ref}
-      className={className}
-      dir={hasArabic ? "rtl" : "ltr"}
-      style={{
-        direction: hasArabic ? "rtl" : "ltr",
-        unicodeBidi: "plaintext",
-        display: "inline",
-        verticalAlign: "middle",
-      }}
-    />
-  );
+  return <span ref={ref} className={className} dir={hasArabic ? "rtl" : "ltr"} style={{ direction: hasArabic ? "rtl" : "ltr", unicodeBidi: "isolate", display: "inline", verticalAlign: "middle" }} />;
 }
