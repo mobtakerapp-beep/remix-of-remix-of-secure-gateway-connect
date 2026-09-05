@@ -76,15 +76,40 @@
     page-break-after: avoid !important;
   }
 
-  .worksheet-export img,
-  .worksheet-export svg {
+  .worksheet-export img {
     max-width: 100% !important;
     height: auto !important;
+  }
+
+  /* Keep Lucide badges/icons as real icons in print; don't let generic SVG
+     sizing collapse them into thin arrow-like shapes. */
+  .worksheet-export svg.lucide {
+    display: inline-block !important;
+    width: 1rem !important;
+    height: 1rem !important;
+    min-width: 1rem !important;
+    min-height: 1rem !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+    vertical-align: middle !important;
   }
 
   .worksheet-export .sheet-mascot {
     max-height: 52px !important;
     width: auto !important;
+  }
+
+  /* Keep each mathematical expression together while allowing the Arabic
+     question itself to wrap naturally only when the line is genuinely long. */
+  .worksheet-export .pdf-question > p,
+  .worksheet-export .pdf-question > span {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+  }
+
+  .worksheet-export .pdf-question mjx-container {
+    white-space: nowrap !important;
   }
 
   .worksheet-export mjx-container,
