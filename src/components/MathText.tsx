@@ -35,7 +35,7 @@ function loadMathJax() {
     }
     const config = document.createElement("script");
     config.type = "text/javascript";
-    config.text = `window.MathJax = { tex: { inlineMath: [['\\\\(', '\\\\)'], ['$', '$']], displayMath: [['\\\\[', '\\\\]'], ['$$', '$$']], processEscapes: true, processEnvironments: true, tags: 'ams' }, svg: { fontCache: 'global' }, options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] } };`;
+    config.text = `window.MathJax = { tex: { inlineMath: [['\\\\(', '\\\\)'], ['$', '$']], displayMath: [['\\\\[', '\\\\]'], ['$$', '$$']], processEscapes: true, processEnvironments: true, tags: 'ams' }, svg: { fontCache: 'none' }, options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] } };`;
     document.head.appendChild(config);
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js";
