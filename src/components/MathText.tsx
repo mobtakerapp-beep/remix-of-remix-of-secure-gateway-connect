@@ -75,19 +75,15 @@ function normalizeArabicMath(value: string) {
     `^{${Array.from(run).map((digit) => superscriptMap[digit] ?? digit).join("")}}`,
   );
 
-  // Keep the Arabic-school variable names in Arabic mode. Do this only for
-  // standalone variables, so English words in the surrounding sentence are untouched.
   normalized = normalized
-    .replace(/\\b([xX])\\b/g, "س")
-    .replace(/\\b([yY])\\b/g, "ص")
-    .replace(/\\b([zZ])\\b/g, "ع");
+    .replace(/(^|[^A-Za-z])([xX])([^A-Za-z]|$)/g, "$1س$3")
+    .replace(/(^|[^A-Za-z])([yY])([^A-Za-z]|$)/g, "$1ص$3")
+    .replace(/(^|[^A-Za-z])([zZ])([^A-Za-z]|$)/g, "$1ع$3");
 
-  // Preserve the preferred radical notation while ensuring its index is an
-  // ordinary Arabic digit when the source uses the Unicode radical glyphs.
   normalized = normalized
-    .replace(/∛\\s*([0-9٠-٩]+)/g, "\\\\sqrt[٣]{$1}")
-    .replace(/∜\\s*([0-9٠-٩]+)/g, "\\\\sqrt[٤]{$1}")
-    .replace(/√\\s*([0-9٠-٩]+)/g, "\\\\sqrt{$1}");
+    .replace(/∛[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٣]{${radicand}}`)
+    .replace(/∜[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٤]{${radicand}}`)
+    .replace(/√[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt{${radicand}}`);
 
   return normalized;
 }
