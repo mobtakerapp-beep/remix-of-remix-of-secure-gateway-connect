@@ -84,23 +84,20 @@ function normalizeArabicMath(value: string) {
     .replace(/(^|[^A-Za-z])([zZ])([^A-Za-z]|$)/g, "$1ع$3");
 
   normalized = normalized
-    .replace(/∛[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\\sqrt[٣]{${radicand}}`)
-    .replace(/∜[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\\sqrt[٤]{${radicand}}`)
-    .replace(/√[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\\sqrt{${radicand}}`);
+    .replace(/∛[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٣]{${radicand}}`)
+    .replace(/∜[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt[٤]{${radicand}}`)
+    .replace(/√[ \t]*([0-9٠-٩]+)/g, (_match, radicand) => String.raw`\sqrt{${radicand}}`);
 
-  // Arabic mathematical variables take their superscript on the visual left.
-  // Also accept the accidental "\\س" form sometimes produced by the generator.
+  // Arabic variables: put their exponent visually on the left without
+  // changing normal LaTeX fractions or other mathematical structures.
   normalized = normalized
     .replace(/\\([سصع])\s*\^\{([^{}]+)\}/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
     .replace(/\\([سصع])\s*\^([0-9٠-٩]+)/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
     .replace(/([سصع])\s*\^\{([^{}]+)\}/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`)
     .replace(/([سصع])\s*\^([0-9٠-٩]+)/g, (_match, variable, exponent) => `{}^{${exponent}}\\!${variable}`);
 
-  // In Arabic mathematical content, the visible school notation for the
-  // limit operator is "نها" rather than the Latin "lim". Keep the standard
-  // LaTeX command as input, but localize only what the learner sees.
   if (/[\u0600-\u06FF]/.test(normalized)) {
-    normalized = normalized.replace(/\\lim\b/g, String.raw`\\text{نها}`);
+    normalized = normalized.replace(/\\lim\b/g, String.raw`\text{نها}`);
   }
 
   return normalized;
@@ -112,15 +109,6 @@ function normalizeDigits(value: string, numerals: Numerals) {
   return value;
 }
 
-/**
- * One rendering engine for all mathematical content in the app.
- * Supports LaTeX fractions, powers, roots, integrals, derivatives and ∂,
- * matrices, limits, sequences, logarithms, trigonometry, Greek/geometric
- * symbols, inequalities and aligned equations.
- *
- * Arabic text stays RTL; MathJax isolates each formula as mathematical LTR
- * content so Arabic sentences remain Arabic while the formula keeps its shape.
- */
 export function MathText({ text, className, numerals = "auto" }: Props) {
   const ref = useRef<HTMLSpanElement>(null);
   const hasArabic = /[\u0600-\u06FF]/.test(text);
@@ -154,7 +142,12 @@ export function MathText({ text, className, numerals = "auto" }: Props) {
       ref={ref}
       className={className}
       dir={hasArabic ? "rtl" : "ltr"}
-      style={{ direction: hasArabic ? "rtl" : "ltr", unicodeBidi: "plaintext" }}
+      style={{
+        direction: hasArabic ? "rtl" : "ltr",
+        unicodeBidi: "plaintext",
+        display: "inline",
+        verticalAlign: "middle",
+      }}
     />
   );
 }
