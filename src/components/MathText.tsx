@@ -65,6 +65,33 @@ function loadMathJax() {
   return mathJaxPromise;
 }
 
+function normalizeArabicMath(value: string) {
+  const superscriptMap: Record<string, string> = {
+    "⁰": "٠", "¹": "١", "²": "٢", "³": "٣", "⁴": "٤",
+    "⁵": "٥", "⁶": "٦", "⁷": "٧", "⁸": "٨", "⁹": "٩",
+  };
+
+  let normalized = value.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (run) =>
+    `^{${Array.from(run).map((digit) => superscriptMap[digit] ?? digit).join("")}}`,
+  );
+
+  // Keep the Arabic-school variable names in Arabic mode. Do this only for
+  // standalone variables, so English words in the surrounding sentence are untouched.
+  normalized = normalized
+    .replace(/\\b([xX])\\b/g, "س")
+    .replace(/\\b([yY])\\b/g, "ص")
+    .replace(/\\b([zZ])\\b/g, "ع");
+
+  // Preserve the preferred radical notation while ensuring its index is an
+  // ordinary Arabic digit when the source uses the Unicode radical glyphs.
+  normalized = normalized
+    .replace(/∛\\s*([0-9٠-٩]+)/g, "\\\\sqrt[٣]{$1}")
+    .replace(/∜\\s*([0-9٠-٩]+)/g, "\\\\sqrt[٤]{$1}")
+    .replace(/√\\s*([0-9٠-٩]+)/g, "\\\\sqrt{$1}");
+
+  return normalized;
+}
+
 function normalizeDigits(value: string, numerals: Numerals) {
   if (numerals === "ar") return value.replace(/[0-9]/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]!);
   if (numerals === "en") return value.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
@@ -78,11 +105,12 @@ function normalizeDigits(value: string, numerals: Numerals) {
  * symbols, inequalities and aligned equations.
  *
  * Arabic text stays RTL; MathJax isolates each formula as mathematical LTR
- * content so a sentence such as "أوجد قيمة س إذا كان $x^2+1=5$" stays Arabic.
+ * content so Arabic sentences remain Arabic while the formula keeps its shape.
  */
 export function MathText({ text, className, numerals = "auto" }: Props) {
   const ref = useRef<HTMLSpanElement>(null);
-  const normalized = normalizeDigits(text, numerals);
+  const mathSource = numerals === "ar" ? normalizeArabicMath(text) : text;
+  const normalized = normalizeDigits(mathSource, numerals);
 
   useEffect(() => {
     let cancelled = false;
