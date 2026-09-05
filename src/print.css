@@ -113,6 +113,8 @@
     unicode-bidi: isolate !important;
     white-space: nowrap !important;
     display: inline-block !important;
+    width: max-content !important;
+    max-width: 100% !important;
     vertical-align: middle !important;
     margin: 0 0.12em !important;
   }
