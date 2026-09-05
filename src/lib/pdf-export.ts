@@ -44,9 +44,6 @@ export async function exportNodeToPdf(
   void node.offsetHeight;
 
   const nodeRect = node.getBoundingClientRect();
-  // Only worksheet questions are hard page-break boundaries. This prevents
-  // a question from being split while avoiding accidental breaks inside the
-  // surrounding layout containers.
   const questionBlocks = Array.from(
     node.querySelectorAll<HTMLElement>(".pdf-question"),
   )
@@ -134,8 +131,8 @@ export async function exportNodeToPdf(
     const naturalEnd = pageStart + canvasPageHeight;
     if (naturalEnd >= canvas.height) break;
 
-    // If the normal page edge falls inside a question, move the edge to the
-    // question's TOP. The whole question therefore starts on the next page.
+    // Keep the complete question together. If its TOP is before the natural
+    // page edge but its BOTTOM is after it, start the question on the next page.
     const crossing = questionBlocks.find(
       (block) =>
         block.top > pageStart + 1 &&
@@ -143,8 +140,6 @@ export async function exportNodeToPdf(
         block.bottom > naturalEnd,
     );
 
-    // Never override this adjustment for a normal question. The old fallback
-    // could put a partially visible question at the bottom of a page.
     const pageEnd = crossing ? crossing.top : naturalEnd;
     if (pageEnd <= pageStart + 1) break;
 
@@ -164,17 +159,7 @@ export async function exportNodeToPdf(
     if (!ctx) return;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, slice.width, slice.height);
-    ctx.drawImage(
-      canvas,
-      0,
-      Math.round(start),
-      canvas.width,
-      sliceHeight,
-      0,
-      0,
-      canvas.width,
-      sliceHeight,
-    );
+    ctx.drawImage(canvas, 0, Math.round(start), canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
     const imageHeight = (sliceHeight * usableWidth) / canvas.width;
     if (index > 0) pdf.addPage();
     pdf.addImage(
