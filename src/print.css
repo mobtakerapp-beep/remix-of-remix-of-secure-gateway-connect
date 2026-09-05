@@ -1,0 +1,112 @@
+/* Print-only rules. Screen design is intentionally untouched. */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: "Cairo", Tahoma, Arial, sans-serif !important;
+  }
+
+  .no-print,
+  button,
+  input,
+  textarea,
+  select,
+  [role="button"] {
+    display: none !important;
+  }
+
+  .worksheet-export {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    font-family: "Cairo", Tahoma, Arial, sans-serif !important;
+  }
+
+  .worksheet-export [dir="rtl"],
+  .worksheet-export .rtl {
+    direction: rtl !important;
+    text-align: right !important;
+    unicode-bidi: plaintext !important;
+  }
+
+  .worksheet-export [dir="ltr"],
+  .worksheet-export .ltr {
+    direction: ltr !important;
+    text-align: left !important;
+  }
+
+  .worksheet-export * {
+    font-family: inherit;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pdf-question,
+  .summary-panel article,
+  .worksheet-export .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .worksheet-export h1,
+  .worksheet-export h2,
+  .worksheet-export h3,
+  .worksheet-export h4 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  .worksheet-export img,
+  .worksheet-export svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  .worksheet-export .sheet-mascot {
+    max-height: 52px !important;
+    width: auto !important;
+  }
+
+  .worksheet-export mjx-container,
+  .worksheet-export mjx-container[display="true"] {
+    direction: ltr !important;
+    unicode-bidi: isolate !important;
+  }
+
+  .worksheet-export .math-fraction,
+  .worksheet-export .math-sup,
+  .worksheet-export sup {
+    direction: ltr !important;
+    unicode-bidi: isolate !important;
+  }
+
+  .worksheet-export .math-fraction {
+    display: inline-flex !important;
+    vertical-align: middle !important;
+  }
+
+  .worksheet-export .overflow-hidden,
+  .worksheet-export .overflow-x-auto {
+    overflow: visible !important;
+  }
+}
