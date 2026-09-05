@@ -46,17 +46,17 @@
   .worksheet-export .rtl {
     direction: rtl !important;
     text-align: right !important;
-    unicode-bidi: plaintext !important;
+    unicode-bidi: isolate !important;
   }
 
   .worksheet-export [dir="ltr"],
   .worksheet-export .ltr {
     direction: ltr !important;
     text-align: left !important;
+    unicode-bidi: isolate !important;
   }
 
   .worksheet-export * {
-    font-family: inherit;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -98,7 +98,7 @@
     width: auto !important;
   }
 
-  /* Keep the question text inline; allow wrapping only at normal text spaces. */
+  /* Keep Arabic question text flowing naturally at normal spaces. */
   .worksheet-export .pdf-question > p,
   .worksheet-export .pdf-question > span {
     white-space: normal !important;
@@ -106,21 +106,12 @@
     overflow-wrap: normal !important;
   }
 
-  /* Never split a single MathJax expression while the surrounding sentence wraps. */
-  .worksheet-export .pdf-question mjx-container {
-    white-space: nowrap !important;
-  }
-
-  /* Do not apply generic SVG sizing to MathJax: its SVG dimensions control
-     fractions, roots, powers and arrows. */
-  .worksheet-export mjx-container {
-    direction: ltr !important;
-    unicode-bidi: isolate !important;
-  }
-
+  /* Keep every MathJax expression together and independent from RTL shaping. */
+  .worksheet-export mjx-container,
   .worksheet-export mjx-container[display="true"] {
     direction: ltr !important;
     unicode-bidi: isolate !important;
+    white-space: nowrap !important;
   }
 
   .worksheet-export .overflow-hidden,
