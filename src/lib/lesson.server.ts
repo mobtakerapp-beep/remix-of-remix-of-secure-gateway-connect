@@ -64,7 +64,31 @@ function buildPrompt(data: Input) {
         : "Use the numeral system that matches the output language (Arabic output -> Arabic-Indic numerals ٠-٩, English output -> 0-9).";
 
   const mathRule = data.includeMath
-    ? "MATH/FORMULA MODE IS ENABLED. When the lesson is mathematical, scientific, physics, chemistry, or otherwise contains calculations or laws, include appropriate calculation-based questions in the MCQ and true/false sections. You may use clear fractions, division, multiplication, addition, subtraction, exponents, roots, ratios, proportions, unknowns/equations, scientific symbols, formulas and units when they are relevant to the lesson. Keep mathematical notation readable in plain text/Unicode (for example 3/4, x², √16, 6 ÷ 2, F = m × a). Respect the selected numeral system for every digit in the mathematical expression. Do not add mathematics to a lesson where it is irrelevant. Double-check each calculation and ensure the stated correct answer matches the calculation."
+    ? `MATH/FORMULA MODE IS STRICTLY ENFORCED. If the lesson contains mathematics, science, physics, chemistry, calculations, formulas, laws, measurements, graphs, geometry, algebra, calculus, statistics, or mathematical notation, you MUST use proper LaTeX for EVERY mathematical expression. This is mandatory, not optional.
+
+ABSOLUTE MATH FORMAT RULES:
+1. Every mathematical expression MUST be wrapped in inline \\( ... \\) or display \\[ ... \\]. Never leave math as bare text.
+2. NEVER use Unicode superscript characters such as ², ³, ⁴ or Unicode subscript characters as the final math notation. Always use LaTeX ^{...} and _{...}, so the renderer places Arabic-Indic digits as true superscripts/subscripts.
+3. NEVER write plain-text fractions such as 3/4 as the final mathematical notation. Use \\frac{٣}{٤} (or Western digits in English mode).
+4. NEVER use a plain Unicode square-root sign such as √16 as the final mathematical notation. Use \\sqrt{١٦}. For nth roots use \\sqrt[٣]{٨}, \\sqrt[٤]{١٦}, etc.
+5. Powers must use LaTeX, e.g. \\س^{٢}, \\س^{ن+١}.
+6. Integrals MUST use LaTeX, e.g. \\int_{٠}^{١} س^2 \\, dس.
+7. Derivatives MUST use LaTeX, e.g. \\frac{dص}{dس}. Partial derivatives MUST use \\partial, e.g. \\frac{\\partial f}{\\partial س}.
+8. Limits MUST use \\lim, e.g. \\lim_{س\\to ٠} \\frac{س^2-١}{س-١}.
+9. Summations/products MUST use \\sum and \\prod with proper limits.
+10. Matrices MUST use LaTeX environments such as \\begin{pmatrix} ... \\end{pmatrix}.
+11. Systems, aligned equations, cases, sequences, series, logarithms, trigonometric functions, vectors, sets, absolute values, inequalities, geometry symbols, Greek letters, angles, degrees and units MUST use standard LaTeX commands whenever they are mathematical.
+12. Use standard commands such as \\sin, \\cos, \\tan, \\log, \\ln, \\le, \\ge, \\neq, \\infty, \\theta, \\pi, \\Delta, etc.
+13. In Arabic output, use Arabic school variables where natural: س، ص، ع، ل، ن، هـ. Do NOT use x/y/z merely out of habit when Arabic variables are appropriate.
+14. In English output, use normal Latin variables such as x, y, z and Western digits.
+15. In Arabic numeral mode, ALL digits inside LaTeX must be Arabic-Indic ٠١٢٣٤٥٦٧٨٩, including exponents, subscripts, limits, matrix entries, coefficients, dates, roots, fractions and answers.
+16. Arabic prose MUST remain normal Arabic RTL outside the math delimiters. Do not reverse, reorder, or transliterate the Arabic sentence around a formula.
+17. If the lesson asks for a calculation, show the mathematical expression in LaTeX and ensure the computed answer is mathematically correct.
+18. Do not mix plain Unicode math notation with LaTeX. LaTeX is the single required math format for generated mathematical content.
+19. Before returning the JSON, internally inspect every generated question, option, true/false statement, flashcard, summary and summary point for mathematical content and convert every such expression to the required LaTeX format.
+20. If a mathematical expression appears in an Arabic sentence, keep the sentence Arabic and put only the mathematical expression inside \\( ... \\), for example: "أوجد قيمة س إذا كان \\(س^{٢}+٣س=٤\\)".
+
+The renderer will typeset these expressions. Do not explain these rules in the lesson output. Double-check every calculation and ensure the stated correct answer matches the calculation.`
     : "MATH/FORMULA MODE IS DISABLED. Prefer conceptual, theoretical, vocabulary, interpretation, and lesson-content questions. Do not invent equations or calculation problems unless the lesson itself requires them.";
 
   const gradeRule = `The learners are in school grade ${data.grade} (of 12). Match vocabulary, sentence length, reasoning depth and difficulty exactly to grade ${data.grade}: very short simple concrete wording for grades 1-3, clear everyday language with light reasoning for grades 4-6, more analysis and precise terminology for grades 7-9, and demanding multi-step / analytical questions for grades 10-12.`;
@@ -74,9 +98,7 @@ function buildPrompt(data: Input) {
   const stylePicks = pickRandom(QUESTION_STYLES, Math.min(7, data.counts.mcq + data.counts.trueFalse));
 
   const bloomGuidance = `Distribute the ${data.counts.mcq} MCQs across these cognitive levels (Bloom's taxonomy): ${bloomPicks.join("; ")}. Do NOT make all questions the same type — aim for variety across recall, understanding, application, analysis, and comparison.`;
-
   const styleGuidance = `Use varied question formats. Include at least some of these styles: ${stylePicks.join("; ")}. Make each question test a DIFFERENT fact or concept from the lesson — never ask about the same information twice.`;
-
   const coverageGuidance = `Coverage rule: split the lesson into as many distinct parts as there are questions, and take each question from a different part (beginning, middle and end all represented). Never start more than one question with the same opening words or stem pattern. Distractors must be plausible and drawn from the lesson itself (near-miss numbers, related terms, swapped causes) — no obviously silly options, no "all of the above", no options that repeat each other, and keep all four options similar in length.`;
 
   return `You are an expert teacher assistant. Read the lesson content and build a classroom package.\n\n${langRule}\n${numeralRule}\n${mathRule}\n${gradeRule}\n\nVARIETY SEED ${seed}: Use this to ensure the questions differ from any previous generation of the same lesson. Vary wording, correct-option placement, and which facts are tested.\n\nProduce EXACTLY:\n- ${data.counts.mcq} multiple choice questions, each with exactly 4 options and the 0-based index of the correct option. ${bloomGuidance} ${styleGuidance} ${coverageGuidance} Randomize the position of the correct answer across the options (don't always put it in the same slot).\n- ${data.counts.trueFalse} true/false statements with the correct boolean answer. Include a mix of clearly true, clearly false, and carefully worded statements that require attention to detail (e.g., swapping a number, changing a name, or reversing a cause/effect). Do not reuse facts already tested in the MCQs.\n- ${data.counts.flashcards} vocabulary/concept flashcards (term + short definition). Choose the MOST important terms from the lesson that a student must memorize.\n- a short lesson title.\n- a thorough 10-15 sentence summary covering the lesson's ideas, sequence, examples, causes/results and essential details. Do not skip ANY important fact, number, date, name, or definition from the source. If the lesson lists items (e.g., the 14 sun letters or moon letters), ALL of them must appear in the summary.\n- 10-15 complete, useful revision bullet points (\"summaryPoints\") that capture every key idea, term, example, number, date, and relationship in the lesson. If the source lists items, every item must appear as its own bullet or within a bullet.\n- a detailed study-notes summary divided into 4-6 sections (\"summarySections\"), where every section has a heading and several points, and every point may include nested sub-points. Each section should cover a distinct sub-topic. Each nested point must add useful detail rather than repeat its parent. Include ALL examples, ALL definitions, ALL causes/effects, ALL comparisons, and ALL listed items (e.g., if the lesson enumerates 14 letters, list all 14). Be exhaustive — a student reading only these notes should have the entire lesson.\n- 5-7 key highlights.\n\nQuestions must be grounded in the lesson content only, age appropriate, clearly worded, and non-repetitive. Avoid asking the exact same fact in multiple questions. Cover as many different parts of the lesson as possible across the full question set.\nSet \"language\" to \"ar\" if the output text is Arabic, otherwise \"en\".\n\nReturn ONLY a JSON object with this exact shape (no markdown fences):\n{\"title\":string,\"summary\":string,\"summaryPoints\":string[],\"summarySections\":[{\"heading\":string,\"points\":[{\"text\":string,\"subPoints\":string[]}]}],\"highlights\":string[],\"language\":\"ar\"|\"en\",\"mcqs\":[{\"question\":string,\"options\":string[],\"answerIndex\":number}],\"trueFalse\":[{\"statement\":string,\"answer\":boolean}],\"flashcards\":[{\"term\":string,\"definition\":string}]}`;
@@ -87,7 +109,6 @@ function repairTruncatedJson(text: string): string {
   let inString = false;
   let escaped = false;
   let lastSafe = -1;
-
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]!;
     if (inString) {
@@ -98,25 +119,16 @@ function repairTruncatedJson(text: string): string {
     }
     if (ch === '"') inString = true;
     else if (ch === "{" || ch === "[") stack.push(ch === "{" ? "}" : "]");
-    else if (ch === "}" || ch === "]") {
-      stack.pop();
-      lastSafe = i;
-    } else if (ch === ",") lastSafe = i - 1;
+    else if (ch === "}" || ch === "]") { stack.pop(); lastSafe = i; }
+    else if (ch === ",") lastSafe = i - 1;
   }
-
   let out = text;
   if (inString || (stack.length > 0 && lastSafe >= 0)) {
     out = text.slice(0, lastSafe + 1);
     stack.length = 0;
-    let s = false;
-    let e = false;
+    let s = false, e = false;
     for (const ch of out) {
-      if (s) {
-        if (e) e = false;
-        else if (ch === "\\") e = true;
-        else if (ch === '"') s = false;
-        continue;
-      }
+      if (s) { if (e) e = false; else if (ch === "\\") e = true; else if (ch === '"') s = false; continue; }
       if (ch === '"') s = true;
       else if (ch === "{" || ch === "[") stack.push(ch === "{" ? "}" : "]");
       else if (ch === "}" || ch === "]") stack.pop();
@@ -128,26 +140,15 @@ function repairTruncatedJson(text: string): string {
 }
 
 function extractJson(raw: string): unknown {
-  const cleaned = raw
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
+  const cleaned = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  try { return JSON.parse(cleaned); } catch {
     const start = cleaned.indexOf("{");
     if (start === -1) throw new Error("The AI response could not be read. Try again.");
     const end = cleaned.lastIndexOf("}");
     const candidate = end > start ? cleaned.slice(start, end + 1) : cleaned.slice(start);
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      try {
-        return JSON.parse(repairTruncatedJson(cleaned.slice(start)));
-      } catch {
-        throw new Error("The AI response was incomplete. Please try again.");
-      }
+    try { return JSON.parse(candidate); } catch {
+      try { return JSON.parse(repairTruncatedJson(cleaned.slice(start))); }
+      catch { throw new Error("The AI response was incomplete. Please try again."); }
     }
   }
 }
@@ -158,260 +159,87 @@ function normalize(parsed: any, data: Input): LessonPackage {
   const mcqs = (Array.isArray(parsed?.mcqs) ? parsed.mcqs : [])
     .filter((m: any) => m?.question && Array.isArray(m?.options) && m.options.length >= 2)
     .slice(0, counts.mcq)
-    .map((m: any) => ({
-      id: uid(),
-      question: String(m.question),
-      options: m.options.slice(0, 6).map((o: unknown) => String(o)),
-      answerIndex: Math.max(0, Math.min(Number(m.answerIndex) || 0, m.options.length - 1)),
-    }));
-
+    .map((m: any) => ({ id: uid(), question: String(m.question), options: m.options.slice(0, 6).map((o: unknown) => String(o)), answerIndex: Math.max(0, Math.min(Number(m.answerIndex) || 0, m.options.length - 1)) }));
   const trueFalse = (Array.isArray(parsed?.trueFalse) ? parsed.trueFalse : [])
-    .filter((t: any) => t?.statement)
-    .slice(0, counts.trueFalse)
+    .filter((t: any) => t?.statement).slice(0, counts.trueFalse)
     .map((t: any) => ({ id: uid(), statement: String(t.statement), answer: Boolean(t.answer) }));
-
   const flashcards = (Array.isArray(parsed?.flashcards) ? parsed.flashcards : [])
-    .filter((f: any) => f?.term)
-    .slice(0, counts.flashcards)
-    .map((f: any) => ({
-      id: uid(),
-      term: String(f.term),
-      definition: String(f.definition ?? ""),
-    }));
-
-  if (!mcqs.length && !trueFalse.length && !flashcards.length) {
-    throw new Error("No questions could be generated from this content.");
-  }
-
+    .filter((f: any) => f?.term).slice(0, counts.flashcards)
+    .map((f: any) => ({ id: uid(), term: String(f.term), definition: String(f.definition ?? "") }));
+  if (!mcqs.length && !trueFalse.length && !flashcards.length) throw new Error("No questions could be generated from this content.");
   const summarySections = (Array.isArray(parsed?.summarySections) ? parsed.summarySections : [])
-    .map((section: any) => ({
-      heading: String(section?.heading ?? "").trim(),
-      points: (Array.isArray(section?.points) ? section.points : [])
-        .map((point: any) => {
-          if (typeof point === "string") return { text: point.trim(), subPoints: [] };
-          return {
-            text: String(point?.text ?? point?.point ?? point?.content ?? "").trim(),
-            subPoints: (Array.isArray(point?.subPoints) ? point.subPoints : [])
-              .map((subPoint: unknown) => String(subPoint).trim())
-              .filter((subPoint: string) => subPoint.length > 0),
-          };
-        })
-        .filter((point: { text: string }) => point.text.length > 0),
-    }))
-    .filter((section: { heading: string; points: unknown[] }) => section.heading.length > 0 && section.points.length > 0)
-    .slice(0, 6);
-
-  return {
-    title: String(parsed?.title ?? "Lesson"),
-    summary: String(parsed?.summary ?? ""),
-    summaryPoints: (Array.isArray(parsed?.summaryPoints) ? parsed.summaryPoints : [])
-      .slice(0, 15)
-      .map((h: unknown) => String(h))
-      .filter((h: string) => h.trim().length > 0),
-    summarySections,
-    highlights: (Array.isArray(parsed?.highlights) ? parsed.highlights : [])
-      .slice(0, 7)
-      .map((h: unknown) => String(h)),
-    language: parsed?.language === "ar" ? "ar" : "en",
-    numerals:
-      data.numerals === "auto"
-        ? parsed?.language === "ar"
-          ? "ar"
-          : "en"
-        : data.numerals,
-    grade: data.grade,
-    mcqs,
-    trueFalse,
-    flashcards,
-  };
+    .map((section: any) => ({ heading: String(section?.heading ?? "").trim(), points: (Array.isArray(section?.points) ? section.points : []).map((point: any) => { if (typeof point === "string") return { text: point.trim(), subPoints: [] }; return { text: String(point?.text ?? point?.point ?? point?.content ?? "").trim(), subPoints: (Array.isArray(point?.subPoints) ? point.subPoints : []).map((subPoint: unknown) => String(subPoint).trim()).filter((subPoint: string) => subPoint.length > 0) }; }).filter((point: { text: string }) => point.text.length > 0) })).filter((section: { heading: string; points: unknown[] }) => section.heading.length > 0 && section.points.length > 0).slice(0, 6);
+  return { title: String(parsed?.title ?? "Lesson"), summary: String(parsed?.summary ?? ""), summaryPoints: (Array.isArray(parsed?.summaryPoints) ? parsed.summaryPoints : []).slice(0, 15).map((h: unknown) => String(h)).filter((h: string) => h.trim().length > 0), summarySections, highlights: (Array.isArray(parsed?.highlights) ? parsed.highlights : []).slice(0, 7).map((h: unknown) => String(h)), language: parsed?.language === "ar" ? "ar" : "en", numerals: data.numerals === "auto" ? (parsed?.language === "ar" ? "ar" : "en") : data.numerals, grade: data.grade, mcqs, trueFalse, flashcards };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export type AiConfig = {
-  provider: "gemini" | "groq" | "openrouter";
-  url: string;
-  key: string;
-  model: string;
-  /** Can this provider/model read images and PDFs, not just text? */
-  multimodal: boolean;
-};
+export type AiConfig = { provider: "gemini" | "groq" | "openrouter"; url: string; key: string; model: string; multimodal: boolean };
 
 export function resolveAiConfigs(): AiConfig[] {
   const configs: AiConfig[] = [];
-
-  // 1. Gemini keys (Primary + automatic quota fallbacks)
-  const geminiKeyNames = [
-    "GEMINI_API_KEY",
-    "GEMINI_API_KEY_2",
-    "GEMINI_API_KEY_3",
-    "GEMINI_API_KEY_4",
-    "GEMINI_API_KEY_5",
-  ];
+  const geminiKeyNames = ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3", "GEMINI_API_KEY_4", "GEMINI_API_KEY_5"];
   const geminiModel = getRuntimeSecret("GEMINI_MODEL") ?? DEFAULT_GEMINI_MODEL;
-
   for (const keyName of geminiKeyNames) {
-    const key = getRuntimeSecret(keyName);
-    if (!key) continue;
-    configs.push({
-      provider: "gemini",
-      url: geminiGenerateUrl(geminiModel),
-      key,
-      model: geminiModel,
-      multimodal: true,
-    });
+    const key = getRuntimeSecret(keyName); if (!key) continue;
+    configs.push({ provider: "gemini", url: geminiGenerateUrl(geminiModel), key, model: geminiModel, multimodal: true });
   }
-
-  // 2. Groq (Text fallback). Use GPT-OSS for strong structured JSON output.
   const groqKey = getRuntimeSecret("GROQ_API_KEY");
-  if (groqKey) {
-    configs.push({
-      provider: "groq",
-      url: "https://api.groq.com/openai/v1/chat/completions",
-      key: groqKey,
-      model: getRuntimeSecret("GROQ_MODEL") ?? DEFAULT_GROQ_MODEL,
-      multimodal: false,
-    });
-  }
-
-  // 3. OpenRouter free router (final fallback; can select free multimodal models for images/PDFs)
+  if (groqKey) configs.push({ provider: "groq", url: "https://api.groq.com/openai/v1/chat/completions", key: groqKey, model: getRuntimeSecret("GROQ_MODEL") ?? DEFAULT_GROQ_MODEL, multimodal: false });
   const openRouterKey = getRuntimeSecret("OPENROUTER_API_KEY");
-  if (openRouterKey) {
-    configs.push({
-      provider: "openrouter",
-      url: "https://openrouter.ai/api/v1/chat/completions",
-      key: openRouterKey,
-      model: DEFAULT_OPENROUTER_MODEL,
-      multimodal: true,
-    });
-  }
-
-  if (configs.length === 0) {
-    throw new Error(
-      "مفتاح الذكاء الاصطناعي غير متاح للسيرفر. أضف GEMINI_API_KEY أو GROQ_API_KEY كـ Secret binding في Cloudflare.",
-    );
-  }
+  if (openRouterKey) configs.push({ provider: "openrouter", url: "https://openrouter.ai/api/v1/chat/completions", key: openRouterKey, model: DEFAULT_OPENROUTER_MODEL, multimodal: true });
+  if (configs.length === 0) throw new Error("مفتاح الذكاء الاصطناعي غير متاح للسيرفر. أضف GEMINI_API_KEY أو GROQ_API_KEY كـ Secret binding في Cloudflare.");
   return configs;
 }
 
-export async function buildLessonPackage(
-  data: Input,
-  providers: AiConfig[],
-): Promise<LessonPackage> {
+export async function buildLessonPackage(data: Input, providers: AiConfig[]): Promise<LessonPackage> {
   const parts: UserPart[] = [{ type: "text", text: buildPrompt(data) }];
-
   if (data.mode === "text") {
-    const text = (data.text ?? "").trim();
-    if (!text) throw new Error("Lesson text is empty.");
+    const text = (data.text ?? "").trim(); if (!text) throw new Error("Lesson text is empty.");
     parts.push({ type: "text", text: `LESSON CONTENT:\n${text.slice(0, 60000)}` });
   } else {
     if (!data.fileData || !data.mediaType) throw new Error("No file was provided.");
-    const dataUrl = data.fileData.startsWith("data:")
-      ? data.fileData
-      : `data:${data.mediaType};base64,${data.fileData}`;
-    if (data.mode === "image") {
-      parts.push({ type: "image_url", image_url: { url: dataUrl } });
-    } else {
-      parts.push({
-        type: "file",
-        file: { filename: data.fileName ?? "lesson.pdf", file_data: dataUrl },
-      });
-    }
-    parts.push({
-      type: "text",
-      text: "The attached file is the lesson content. Read all of its text (use OCR if it is a photo of a page).",
-    });
+    const dataUrl = data.fileData.startsWith("data:") ? data.fileData : `data:${data.mediaType};base64,${data.fileData}`;
+    if (data.mode === "image") parts.push({ type: "image_url", image_url: { url: dataUrl } });
+    else parts.push({ type: "file", file: { filename: data.fileName ?? "lesson.pdf", file_data: dataUrl } });
+    parts.push({ type: "text", text: "The attached file is the lesson content. Read all of its text (use OCR if it is a photo of a page)." });
   }
-
   const messageContent = parts.map((part) => {
     if (part.type === "text") return { type: "text" as const, text: part.text };
-    if (part.type === "image_url") {
-      return { type: "image_url" as const, image_url: { url: part.image_url.url } };
-    }
-    return {
-      type: "file" as const,
-      file: { filename: part.file.filename, file_data: part.file.file_data },
-    };
+    if (part.type === "image_url") return { type: "image_url" as const, image_url: { url: part.image_url.url } };
+    return { type: "file" as const, file: { filename: part.file.filename, file_data: part.file.file_data } };
   });
-
   const geminiParts = parts.map((part) => {
     if (part.type === "text") return { text: part.text };
     const dataUrl = part.type === "image_url" ? part.image_url.url : part.file.file_data;
     const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl);
-    return {
-      inline_data: {
-        mime_type: match?.[1] ?? data.mediaType ?? "application/octet-stream",
-        data: match?.[2] ?? dataUrl,
-      },
-    };
+    return { inline_data: { mime_type: match?.[1] ?? data.mediaType ?? "application/octet-stream", data: match?.[2] ?? dataUrl } };
   });
-
   const needsMultimodal = data.mode !== "text";
   const usable = providers.filter((ai) => !needsMultimodal || ai.multimodal);
-  if (usable.length === 0) {
-    throw new Error("المزود المتاح لا يدعم قراءة الصور أو ملفات PDF. أضف GEMINI_API_KEY أو OPENROUTER_API_KEY.");
-  }
-
+  if (usable.length === 0) throw new Error("المزود المتاح لا يدعم قراءة الصور أو ملفات PDF. أضف GEMINI_API_KEY أو OPENROUTER_API_KEY.");
   let lastError = "تعذّر توليد الدرس الآن.";
   for (const ai of usable) {
     const isGemini = ai.provider === "gemini";
     for (let attempt = 0; attempt < 2; attempt++) {
       let response: Response;
       try {
-        response = await fetch(ai.url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(isGemini
-              ? { "x-goog-api-key": ai.key }
-              : { Authorization: `Bearer ${ai.key}` }),
-          },
-          body: JSON.stringify(
-            isGemini
-              ? {
-                  contents: [{ role: "user", parts: geminiParts }],
-                  generationConfig: {
-                    responseMimeType: "application/json",
-                    maxOutputTokens: 16000,
-                  },
-                }
-              : {
-                  model: ai.model,
-                  messages: [{ role: "user", content: messageContent }],
-                  response_format: { type: "json_object" },
-                  max_tokens: 8192,
-                },
-          ),
-        });
+        response = await fetch(ai.url, { method: "POST", headers: { "Content-Type": "application/json", ...(isGemini ? { "x-goog-api-key": ai.key } : { Authorization: `Bearer ${ai.key}` }) }, body: JSON.stringify(isGemini ? { contents: [{ role: "user", parts: geminiParts }], generationConfig: { responseMimeType: "application/json", maxOutputTokens: 16000 } } : { model: ai.model, messages: [{ role: "user", content: messageContent }], response_format: { type: "json_object" }, max_tokens: 8192 }) });
       } catch (networkError) {
-        // Network/DNS failure: retry once, then move to the next provider.
         lastError = networkError instanceof Error ? networkError.message : "Network error";
         if (attempt === 1) break;
         await new Promise((resolve) => setTimeout(resolve, 1000));
         continue;
       }
-
       if (response.ok) {
-        const json = (await response.json().catch(() => ({}))) as {
-          choices?: Array<{ message?: { content?: string } }>;
-          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-        };
-        const text = isGemini
-          ? (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("")
-          : (json.choices?.[0]?.message?.content ?? "");
+        const json = (await response.json().catch(() => ({}))) as { choices?: Array<{ message?: { content?: string } }>; candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+        const text = isGemini ? (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("") : (json.choices?.[0]?.message?.content ?? "");
         if (text.trim()) {
-          try {
-            return normalize(extractJson(text), data);
-          } catch (parseError) {
-            // Unparsable/unusable output: retry once, then fall back to the next provider.
-            lastError = parseError instanceof Error ? parseError.message : "AI response could not be read.";
-            if (attempt === 1) break;
-            continue;
-          }
+          try { return normalize(extractJson(text), data); }
+          catch (parseError) { lastError = parseError instanceof Error ? parseError.message : "AI response could not be read."; if (attempt === 1) break; continue; }
         }
         lastError = "أعاد مزود الذكاء الاصطناعي استجابة فارغة.";
         break;
       }
-
       const detail = await response.text().catch(() => "");
       lastError = detail.slice(0, 300) || `AI request failed (${response.status})`;
       const retryable = response.status === 429 || response.status >= 500;
@@ -419,6 +247,5 @@ export async function buildLessonPackage(
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
-
   throw new Error(lastError);
 }
