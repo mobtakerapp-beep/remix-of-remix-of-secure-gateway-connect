@@ -42,18 +42,19 @@
     font-family: "Cairo", Tahoma, Arial, sans-serif !important;
   }
 
+  /* Let the browser shape Arabic normally instead of isolating every text run. */
   .worksheet-export [dir="rtl"],
   .worksheet-export .rtl {
     direction: rtl !important;
     text-align: right !important;
-    unicode-bidi: isolate !important;
+    unicode-bidi: normal !important;
   }
 
   .worksheet-export [dir="ltr"],
   .worksheet-export .ltr {
     direction: ltr !important;
     text-align: left !important;
-    unicode-bidi: isolate !important;
+    unicode-bidi: normal !important;
   }
 
   .worksheet-export * {
@@ -81,7 +82,6 @@
     height: auto !important;
   }
 
-  /* Preserve the original Lucide icon geometry in printed output. */
   .worksheet-export svg.lucide {
     display: inline-block !important;
     width: 1rem !important;
@@ -98,7 +98,7 @@
     width: auto !important;
   }
 
-  /* Keep Arabic question text flowing naturally at normal spaces. */
+  /* Arabic sentences wrap only at normal spaces. */
   .worksheet-export .pdf-question > p,
   .worksheet-export .pdf-question > span {
     white-space: normal !important;
@@ -106,12 +106,20 @@
     overflow-wrap: normal !important;
   }
 
-  /* Keep every MathJax expression together and independent from RTL shaping. */
+  /* Keep math beside the Arabic sentence, including display-mode LaTeX. */
   .worksheet-export mjx-container,
   .worksheet-export mjx-container[display="true"] {
     direction: ltr !important;
     unicode-bidi: isolate !important;
     white-space: nowrap !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    margin: 0 0.12em !important;
+  }
+
+  .worksheet-export mjx-container svg {
+    display: inline-block !important;
+    overflow: visible !important;
   }
 
   .worksheet-export .overflow-hidden,
