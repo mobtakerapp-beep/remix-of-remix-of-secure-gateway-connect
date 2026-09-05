@@ -1,5 +1,6 @@
 import { BookOpenText, CheckCircle2, Sparkles } from "lucide-react";
 
+import { MathText } from "@/components/MathText";
 import type { LessonPackage } from "@/lib/lesson-types";
 
 export function SummaryPanel({ pkg, compact = false }: { pkg: LessonPackage; compact?: boolean }) {
@@ -28,7 +29,7 @@ export function SummaryPanel({ pkg, compact = false }: { pkg: LessonPackage; com
 
       {pkg.summary && (
         <p className="mt-4 border-s-4 border-amber ps-4 text-sm font-medium leading-8 text-foreground">
-          {pkg.summary}
+          <MathText text={pkg.summary} numerals={pkg.numerals} />
         </p>
       )}
 
@@ -40,21 +41,21 @@ export function SummaryPanel({ pkg, compact = false }: { pkg: LessonPackage; com
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald text-sm text-emerald-foreground">
                   {sectionIndex + 1}
                 </span>
-                {section.heading}
+                <MathText text={section.heading} numerals={pkg.numerals} />
               </h4>
               <ul className="mt-3 space-y-2 text-sm leading-7">
                 {section.points.map((point, pointIndex) => (
                   <li key={`${point.text}-${pointIndex}`}>
                     <div className="flex items-start gap-2">
                       <CheckCircle2 className="mt-1 size-4 shrink-0 text-emerald" />
-                      <span>{point.text}</span>
+                      <span><MathText text={point.text} numerals={pkg.numerals} /></span>
                     </div>
                     {point.subPoints.length > 0 && (
                       <ul className="ms-6 mt-1 space-y-1 border-s-2 border-amber/50 ps-4 text-muted-foreground">
                         {point.subPoints.map((subPoint, subIndex) => (
                           <li key={`${subPoint}-${subIndex}`} className="flex items-start gap-2">
                             <span className="mt-3 size-1.5 shrink-0 rounded-full bg-amber" />
-                            <span>{subPoint}</span>
+                            <span className="leading-6"><MathText text={subPoint} numerals={pkg.numerals} /></span>
                           </li>
                         ))}
                       </ul>
@@ -70,7 +71,7 @@ export function SummaryPanel({ pkg, compact = false }: { pkg: LessonPackage; com
           {points.map((point, index) => (
             <div key={`${point}-${index}`} className="flex items-start gap-3 rounded-2xl border border-emerald/25 bg-accent/45 p-3">
               <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-emerald text-emerald-foreground"><CheckCircle2 className="size-4" /></span>
-              <p className="text-sm leading-7">{point}</p>
+              <p className="text-sm leading-7"><MathText text={point} numerals={pkg.numerals} /></p>
             </div>
           ))}
         </div>
