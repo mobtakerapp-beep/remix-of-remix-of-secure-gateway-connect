@@ -77,6 +77,7 @@ function Home() {
   const [savedLessonId, setSavedLessonId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [teacherName, setTeacherName] = useState("");
   const hideMascots = useHideMascots();
 
   useEffect(() => {
@@ -168,14 +169,17 @@ function Home() {
 
   const handleShare = async () => {
     if (!pkg) return;
+    const teacher = teacherName.trim();
+    if (teacher.length < 2) {
+      toast.error(lang === "ar" ? "اكتبي اسم المعلم أولًا" : "Enter the teacher name first");
+      return;
+    }
     setSharing(true);
     try {
-      // A short link: the lesson lives in the database under this token,
-      // so student results always link back to the right lesson.
       const res = await share({
         data: {
           title: pkg.title || t.lessonTitle,
-          package: { ...pkg, hideMascots: getHideMascots() } as never,
+          package: { ...pkg, teacherName: teacher, hideMascots: getHideMascots() } as never,
         },
       });
       const url = `${window.location.origin}/s/${res.token}`;
@@ -189,7 +193,6 @@ function Home() {
       setSharing(false);
     }
   };
-
 
   return (
     <main className="min-h-screen blob-bg bg-background">
@@ -282,7 +285,19 @@ function Home() {
               <h2 className="flex items-center gap-2 font-display text-2xl font-bold">
                 <Sparkles className="size-5 text-amber" /> {pkg.title}
               </h2>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="w-48 max-w-full">
+                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                    {lang === "ar" ? "اسم المعلم" : "Teacher name"}
+                  </label>
+                  <input
+                    value={teacherName}
+                    onChange={(e) => setTeacherName(e.target.value)}
+                    placeholder={lang === "ar" ? "اكتب اسمك" : "Enter your name"}
+                    maxLength={60}
+                    className="h-9 w-full rounded-full border border-border bg-background px-4 text-center text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary"
+                  />
+                </div>
                 <Button
                   variant="outline"
                   className="no-print rounded-full"
@@ -334,71 +349,57 @@ function Home() {
             </div>
           </Card>
 
-
-          
-
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl p-1 sm:grid sm:h-auto sm:grid-cols-4 lg:grid-cols-7">
               <TabsTrigger value="play" className="shrink-0 whitespace-nowrap rounded-xl">
                 <Gamepad2 className="mr-2 size-4" /> {t.tabPlay}
               </TabsTrigger>
+              <TabsTrigger value="summary" className="shrink-0 whitespace-nowrap rounded-xl">
+                <BookOpen className="mr-2 size-4" /> {t.tabSummary}
+              </TabsTrigger>
               <TabsTrigger value="cards" className="shrink-0 whitespace-nowrap rounded-xl">
-                <BookOpen className="mr-2 size-4" /> {t.tabCards}
+                <FileText className="mr-2 size-4" /> {t.tabCards}
               </TabsTrigger>
               <TabsTrigger value="wheel" className="shrink-0 whitespace-nowrap rounded-xl">
                 <PartyPopper className="mr-2 size-4" /> {t.tabWheel}
               </TabsTrigger>
-              <TabsTrigger value="mind" className="shrink-0 whitespace-nowrap rounded-xl">
-                <Network className="mr-2 size-4" /> {t.tabMind}
+              <TabsTrigger value="worksheet" className="shrink-0 whitespace-nowrap rounded-xl">
+                <Printer className="mr-2 size-4" /> {t.tabWorksheet}
               </TabsTrigger>
-              <TabsTrigger value="summary" className="shrink-0 whitespace-nowrap rounded-xl">
-                <FileText className="mr-2 size-4" /> {t.tabSummary}
-              </TabsTrigger>
-              <TabsTrigger value="sheet" className="shrink-0 whitespace-nowrap rounded-xl">
-                <Printer className="mr-2 size-4" /> {t.tabSheet}
+              <TabsTrigger value="mindmap" className="shrink-0 whitespace-nowrap rounded-xl">
+                <Network className="mr-2 size-4" /> {t.tabMindMap}
               </TabsTrigger>
               <TabsTrigger value="editor" className="shrink-0 whitespace-nowrap rounded-xl">
                 <PenLine className="mr-2 size-4" /> {t.tabEditor}
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="play" className="mt-6">
+            <TabsContent value="play" className="mt-5">
               <PlayTab pkg={pkg} />
             </TabsContent>
-            <TabsContent value="cards" className="mt-6">
-              <FlashcardsTab pkg={pkg} />
-            </TabsContent>
-            <TabsContent value="wheel" className="mt-6">
-              <WheelTab pkg={pkg} />
-            </TabsContent>
-            <TabsContent value="mind" className="mt-6">
-              <Card className="rounded-3xl p-4 sm:p-6" dir={pkg.language === "ar" ? "rtl" : "ltr"}>
-                <h3 className="mb-4 font-display text-lg font-bold text-primary">
-                  {t.mindMapTitle}
-                </h3>
-                <MindMap pkg={pkg} />
-              </Card>
-            </TabsContent>
-            <TabsContent value="summary" className="mt-6">
+            <TabsContent value="summary" className="mt-5">
               <SummaryTab pkg={pkg} />
             </TabsContent>
-            <TabsContent value="sheet" className="mt-6">
+            <TabsContent value="cards" className="mt-5">
+              <FlashcardsTab pkg={pkg} />
+            </TabsContent>
+            <TabsContent value="wheel" className="mt-5">
+              <WheelTab pkg={pkg} />
+            </TabsContent>
+            <TabsContent value="worksheet" className="mt-5">
               <WorksheetTab pkg={pkg} />
             </TabsContent>
-            <TabsContent value="editor" className="mt-6">
-              <EditorTab pkg={pkg} onChange={setPkg} />
+            <TabsContent value="mindmap" className="mt-5">
+              <MindMap pkg={pkg} />
+            </TabsContent>
+            <TabsContent value="editor" className="mt-5">
+              <EditorTab pkg={pkg} />
             </TabsContent>
           </Tabs>
         </section>
       )}
 
-      <footer className="no-print border-t border-border bg-card/60 px-4 py-8 text-center">
-        <img
-          src={partyImg}
-          alt={lang === "ar" ? "حيوان يحتفل" : "Party animal"}
-          className="mx-auto size-12 animate-bounce-slow"
-        />
-        <p className="mt-3 font-display text-base font-bold text-primary">{t.footer}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{t.poweredBy}</p>
+      <footer className="mx-auto max-w-6xl px-4 pb-8 text-center text-xs font-semibold text-muted-foreground">
+        {lang === "ar" ? "صُمّم بحب للمعلمين والطلاب" : "Made with love for teachers and students"}
       </footer>
     </main>
   );
