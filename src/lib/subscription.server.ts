@@ -38,7 +38,8 @@ function isSameDay(a: Date, b: Date) {
 function normalizePlan(raw: string | null | undefined): "free" | "standard" | "premium" {
   if (raw === "standard") return "standard";
   if (raw === "premium") return "premium";
-  if (raw === "monthly" || raw === "yearly") return "premium";
+  if (raw === "monthly") return "standard";
+  if (raw === "yearly") return "premium";
   return "free";
 }
 
@@ -46,6 +47,75 @@ function dailyLimitForPlan(plan: "free" | "standard" | "premium") {
   if (plan === "premium") return PREMIUM_DAILY_LIMIT;
   if (plan === "standard") return STANDARD_DAILY_LIMIT;
   return FREE_TOTAL_LIMIT;
+}
+
+async function recoverPaidSubscriptionFromRedemption(
+  userId: string,
+  currentSub: Database["public"]["Tables"]["subscriptions"]["Row"] | null,
+) {
+  try {
+    const { supabaseAdmin } = await import("@/lib/supabase-admin.server");
+    const { data: redemption } = await supabaseAdmin
+      .from("code_redemptions")
+      .select("created_at, activation_codes(plan, duration_days, note)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!redemption) return currentSub;
+
+    const code = Array.isArray(redemption.activation_codes)
+      ? redemption.activation_codes[0]
+      : redemption.activation_codes;
+    const note = code?.note ?? "";
+    if (note.trim().toUpperCase().startsWith("[GIFT]")) return currentSub;
+
+    const plan = normalizePlan(code?.plan);
+    if (plan === "free") return currentSub;
+
+    const redeemedAt = new Date(redemption.created_at);
+    const durationDays = Math.max(1, Number(code?.duration_days ?? 30));
+    const expires = new Date(redeemedAt);
+    expires.setDate(expires.getDate() + durationDays);
+
+    if (expires <= new Date()) return currentSub;
+
+    const currentExpiry = currentSub?.expires_at ? new Date(currentSub.expires_at) : null;
+    const needsRepair =
+      !currentSub ||
+      normalizePlan(currentSub.plan) !== plan ||
+      currentSub.status !== "active" ||
+      !currentExpiry ||
+      currentExpiry <= new Date();
+
+    if (!needsRepair) return currentSub;
+
+    const payload = {
+      user_id: userId,
+      plan,
+      status: "active",
+      expires_at: expires.toISOString(),
+      generations_used: currentSub?.generations_used ?? 0,
+      reset_at: currentSub?.reset_at ?? new Date().toISOString(),
+    };
+
+    if (currentSub) {
+      await supabaseAdmin.from("subscriptions").update(payload).eq("user_id", userId);
+    } else {
+      await supabaseAdmin.from("subscriptions").insert(payload);
+    }
+
+    const { data: repaired } = await supabaseAdmin
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return repaired ?? currentSub;
+  } catch (error) {
+    console.error("recoverPaidSubscriptionFromRedemption failed", error);
+    return currentSub;
+  }
 }
 
 export async function getSubscriptionStatus(
@@ -66,13 +136,17 @@ export async function getSubscriptionStatus(
     ]);
   }
 
-  const sub = subResult.data;
   const profile = profileResult.data;
   const email = userResult.data?.user?.email ?? "";
 
   const isAdmin =
     email === "uuxz272@gmail.com" ||
     userId === "3494f40c-adb0-4a3c-b101-27bd69a5b999";
+
+  const repairedSub = isAdmin
+    ? subResult.data
+    : await recoverPaidSubscriptionFromRedemption(userId, subResult.data);
+  const sub = repairedSub ?? subResult.data;
 
   const now = new Date();
   let plan: "free" | "standard" | "premium" = "free";
