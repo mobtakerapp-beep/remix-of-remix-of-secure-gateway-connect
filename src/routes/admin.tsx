@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Copy, Download, Home, Loader2, Plus, Search, Shield, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Home, Loader2, Plus, Search, Shield, SquarePower, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { adminCreateCodes, adminDeleteCode, adminListCodes, amIAdmin, type CodeRow } from "@/lib/access.functions";
+import { adminCreateCodes, adminDeleteCode, adminListCodes, adminSetCodeActive, amIAdmin, type CodeRow } from "@/lib/access.functions";
 import { createCodesClient, deleteCodeClient, isAdminClient, listCodesClient } from "@/lib/admin-client";
 import { useI18n } from "@/lib/i18n";
 
@@ -47,6 +47,7 @@ function AdminPage() {
   const listCodes = useServerFn(adminListCodes);
   const createCodes = useServerFn(adminCreateCodes);
   const deleteCode = useServerFn(adminDeleteCode);
+  const setCodeActive = useServerFn(adminSetCodeActive);
 
   const [ready, setReady] = useState(false);
   const [allowed, setAllowed] = useState(false);
@@ -59,6 +60,7 @@ function AdminPage() {
   const [maxUses, setMaxUses] = useState(1);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const refresh = async () => {
@@ -114,6 +116,21 @@ function AdminPage() {
       toast.error(ar ? "فشل توليد الأكواد" : "Failed to generate codes");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const toggleCode = async (row: CodeRow) => {
+    setTogglingId(row.id);
+    try {
+      await setCodeActive({ data: { id: row.id, active: !row.active } });
+      toast.success(row.active
+        ? (ar ? "تم إيقاف الكود" : "Code disabled")
+        : (ar ? "تم تفعيل الكود" : "Code enabled"));
+      await refresh();
+    } catch {
+      toast.error(ar ? "تعذر تغيير حالة الكود" : "Could not change code status");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -186,7 +203,7 @@ function AdminPage() {
 
         <Card className="overflow-hidden rounded-3xl p-2">
           <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-sm"><Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={ar ? "ابحث بالكود أو الخطة" : "Search codes"} className="rounded-full ps-9" /></div><Button variant="outline" className="rounded-full" onClick={exportCsv} disabled={!filtered.length}><Download className="me-1 size-4" />CSV</Button></div>
-          <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="text-muted-foreground"><tr><th className="p-3 text-start">{ar ? "الكود" : "Code"}</th><th className="p-3 text-start">{ar ? "الخطة" : "Plan"}</th><th className="p-3 text-start">{ar ? "الفترة" : "Period"}</th><th className="p-3 text-start">{ar ? "الأيام" : "Days"}</th><th className="p-3 text-start">{ar ? "الاستخدام" : "Uses"}</th><th className="p-3 text-start">{ar ? "الحالة" : "Status"}</th><th className="p-3 text-end">{ar ? "إجراءات" : "Actions"}</th></tr></thead><tbody>{filtered.map((r) => <tr key={r.id} className="border-t border-border/60"><td className="p-3 font-mono font-bold">{r.code}</td><td className="p-3">{planLabel(r.plan, r.note, ar)}</td><td className="p-3">{periodLabel(r.durationDays, r.note, ar)}</td><td className="p-3">{r.durationDays}</td><td className="p-3">{r.usedCount}/{r.maxUses}</td><td className="p-3">{r.active ? (ar ? "فعّال" : "Active") : (ar ? "موقوف" : "Disabled")}</td><td className="p-3"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" className="rounded-full" onClick={() => void navigator.clipboard.writeText(r.code).then(() => toast.success(ar ? "تم النسخ" : "Copied")).catch(() => undefined)}><Copy className="size-3.5" /></Button><Button size="sm" variant="outline" className="rounded-full text-destructive hover:text-destructive" disabled={busy} onClick={() => void removeCode(r)}><Trash2 className="size-3.5" /></Button></div></td></tr>)}</tbody></table></div>
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="text-muted-foreground"><tr><th className="p-3 text-start">{ar ? "الكود" : "Code"}</th><th className="p-3 text-start">{ar ? "الخطة" : "Plan"}</th><th className="p-3 text-start">{ar ? "الفترة" : "Period"}</th><th className="p-3 text-start">{ar ? "الأيام" : "Days"}</th><th className="p-3 text-start">{ar ? "الاستخدام" : "Uses"}</th><th className="p-3 text-start">{ar ? "الحالة" : "Status"}</th><th className="p-3 text-end">{ar ? "إجراءات" : "Actions"}</th></tr></thead><tbody>{filtered.map((r) => <tr key={r.id} className="border-t border-border/60"><td className="p-3 font-mono font-bold">{r.code}</td><td className="p-3">{planLabel(r.plan, r.note, ar)}</td><td className="p-3">{periodLabel(r.durationDays, r.note, ar)}</td><td className="p-3">{r.durationDays}</td><td className="p-3">{r.usedCount}/{r.maxUses}</td><td className="p-3"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${r.active ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-muted text-muted-foreground"}`}><span className={`size-1.5 rounded-full ${r.active ? "bg-emerald-500" : "bg-muted-foreground"}`} />{r.active ? (ar ? "فعّال" : "Active") : (ar ? "موقوف" : "Disabled")}</span></td><td className="p-3"><div className="flex justify-end gap-2"><Button size="sm" variant={r.active ? "outline" : "default"} className={`rounded-full ${r.active ? "text-destructive hover:text-destructive" : ""}`} disabled={togglingId === r.id || busy} onClick={() => void toggleCode(r)}>{togglingId === r.id ? <Loader2 className="size-3.5 animate-spin" /> : r.active ? <><SquarePower className="me-1 size-3.5" />{ar ? "إيقاف" : "Disable"}</> : <><Check className="me-1 size-3.5" />{ar ? "تفعيل" : "Enable"}</>}</Button><Button size="sm" variant="outline" className="rounded-full" onClick={() => void navigator.clipboard.writeText(r.code).then(() => toast.success(ar ? "تم النسخ" : "Copied")).catch(() => undefined)}><Copy className="size-3.5" /></Button><Button size="sm" variant="outline" className="rounded-full text-destructive hover:text-destructive" disabled={busy} onClick={() => void removeCode(r)}><Trash2 className="size-3.5" /></Button></div></td></tr>)}</tbody></table></div>
           {!filtered.length && <p className="p-8 text-center text-sm text-muted-foreground">{ar ? "لا توجد أكواد" : "No codes found"}</p>}
         </Card>
       </div>
