@@ -66,6 +66,8 @@ function SharedLessonPage() {
     })();
   }, [load, token]);
 
+  const teacherName = pkg ? String((pkg as unknown as Record<string, unknown>).teacherName ?? "").trim() : "";
+
   const handleFinish = (result: PlayResult) => {
     if (!studentName || sent) return;
     setSent(true);
@@ -130,6 +132,11 @@ function SharedLessonPage() {
         >
           <UserRound className="mx-auto size-10 text-primary" />
           <h1 className="mt-3 font-display text-xl font-extrabold">{pkg.title}</h1>
+          {teacherName && (
+            <p className="mt-2 text-sm font-semibold text-primary">
+              {ar ? `المعلم: ${teacherName}` : `Teacher: ${teacherName}`}
+            </p>
+          )}
           <p className="mt-2 text-sm text-muted-foreground">
             {ar
               ? "اكتب اسمك قبل بدء اللعب حتى يشوف معلّمك درجتك."
@@ -169,6 +176,11 @@ function SharedLessonPage() {
             <h1 className="flex items-center gap-2 font-display text-xl font-extrabold sm:text-2xl">
               <Gamepad2 className="size-5 text-amber" /> {pkg.title}
             </h1>
+            {teacherName && (
+              <p className="mt-1 text-sm font-semibold text-primary">
+                {ar ? `المعلم: ${teacherName}` : `Teacher: ${teacherName}`}
+              </p>
+            )}
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
               {ar ? `أهلاً ${studentName}! أجب عن الأسئلة واجمع النقاط.` : `Hi ${studentName}! Answer the questions and collect points.`}
             </p>
