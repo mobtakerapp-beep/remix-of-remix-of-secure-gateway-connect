@@ -30,14 +30,13 @@ export const Route = createFileRoute("/subscribe")({
 const WHATSAPP = "96872681302";
 
 const PLANS = [
-  { id: "standard", nameAr: "الاشتراك العادي", nameEn: "Standard", monthlyPrice: 7, yearlyPrice: 50, descAr: "3 دروس يوميًا + نص وصور + PDF حتى صفحتين", descEn: "3 lessons/day + text and images + PDF up to 2 pages" },
-  { id: "premium", nameAr: "الاشتراك المميز", nameEn: "Premium", monthlyPrice: 15, yearlyPrice: 100, descAr: "3 دروس يوميًا + نص وصور + PDF حتى 3 صفحات + فيديو حتى دقيقتين", descEn: "3 lessons/day + text and images + PDF up to 3 pages + video up to 2 minutes" },
+  { id: "standard", nameAr: "الاشتراك العادي", nameEn: "Standard", monthlyPrice: 7, yearlyPrice: 50, descAr: "درسان يوميًا + نص وصور + PDF حتى صفحتين", descEn: "2 lessons/day + text and images + PDF up to 2 pages" },
+  { id: "premium", nameAr: "الاشتراك المميز", nameEn: "Premium", monthlyPrice: 15, yearlyPrice: 100, descAr: "4 دروس يوميًا + نص وصور + PDF حتى 3 صفحات + فيديو حتى دقيقتين", descEn: "4 lessons/day + text and images + PDF up to 3 pages + video up to 2 minutes" },
 ] as const;
 
 function waLink(plan: (typeof PLANS)[number], period: "monthly" | "yearly", email?: string, contactOnly = false) {
   const price = period === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
   const periodAr = period === "yearly" ? "سنوي" : "شهري";
-  const periodEn = period === "yearly" ? "Yearly" : "Monthly";
   const text = contactOnly
     ? `مرحبًا، عندي استفسار عن ملخصي.${email ? ` بريدي: ${email}` : ""}`
     : `مرحبًا، أريد الاشتراك في ${plan.nameAr} ${periodAr} بسعر ${price}$.${email ? ` بريد حسابي: ${email}` : ""}`;
@@ -78,7 +77,7 @@ function SubscribePage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex items-center justify-between"><Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowRight className="size-4 rtl:rotate-180" /> {ar ? "رجوع" : "Back"}</Link><InstallPWA /></div>
         <div className="text-center"><div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl gradient-warm text-primary-foreground"><Crown className="size-7" /></div><h1 className="text-2xl font-bold">{ar ? "خطط اشتراك ملخصي" : "Malakhasi plans"}</h1><p className="mt-2 text-sm text-muted-foreground">{ar ? "التجربة المجانية مرة واحدة فقط لكل حساب. بعدها اختاري العادي أو المميز." : "Free trial is one generation per account. Then choose Standard or Premium."}</p></div>
-        {status && <Card className="rounded-2xl p-4 text-sm"><div className="flex items-center gap-2 font-semibold"><BadgeCheck className="size-4 text-primary" />{ar ? `خطتك الحالية: ${planName(status.plan)}${status.plan !== "free" ? " (3 دروس يوميًا)" : " — محاولة واحدة فقط"}` : `Current plan: ${planName(status.plan)}${status.plan !== "free" ? " (3 lessons/day)" : " — one trial generation"}`}</div>{status.plan !== "free" && status.daysRemaining !== null && <div className="mt-2 flex flex-wrap items-center gap-2 text-muted-foreground"><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{ar ? `باقي ${status.daysRemaining} يوم على انتهاء اشتراكك` : `${status.daysRemaining} days remaining`}</span>{status.expiresAt && <span className="text-xs">{ar ? "ينتهي في " : "Expires on "}{new Date(status.expiresAt).toLocaleDateString(ar ? "ar-EG" : "en-GB")}</span>}</div>}</Card>}
+        {status && <Card className="rounded-2xl p-4 text-sm"><div className="flex items-center gap-2 font-semibold"><BadgeCheck className="size-4 text-primary" />{ar ? `خطتك الحالية: ${planName(status.plan)}${status.plan === "premium" ? " (4 دروس يوميًا)" : status.plan === "standard" ? " (درسان يوميًا)" : " — محاولة واحدة فقط"}` : `Current plan: ${planName(status.plan)}${status.plan === "premium" ? " (4 lessons/day)" : status.plan === "standard" ? " (2 lessons/day)" : " — one trial generation"}`}</div>{status.plan !== "free" && status.daysRemaining !== null && <div className="mt-2 flex flex-wrap items-center gap-2 text-muted-foreground"><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{ar ? `باقي ${status.daysRemaining} يوم على انتهاء اشتراكك` : `${status.daysRemaining} days remaining`}</span>{status.expiresAt && <span className="text-xs">{ar ? "ينتهي في " : "Expires on "}{new Date(status.expiresAt).toLocaleDateString(ar ? "ar-EG" : "en-GB")}</span>}</div>}</Card>}
 
         <div className="grid gap-4 sm:grid-cols-2">
           {PLANS.map((plan) => (
