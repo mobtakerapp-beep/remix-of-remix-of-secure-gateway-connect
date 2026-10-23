@@ -7,7 +7,13 @@ export async function exportNodeToPdf(
   fileName: string,
   options?: { credit?: string },
 ) {
-  if (typeof document !== "undefined" && document.fonts?.ready) await document.fonts.ready;
+  // Do not let a stalled web-font load block PDF export indefinitely on mobile.
+  if (typeof document !== "undefined" && document.fonts?.ready) {
+    await Promise.race([
+      document.fonts.ready,
+      new Promise<void>((resolve) => setTimeout(resolve, 2000)),
+    ]);
+  }
 
   await Promise.all(
     Array.from(node.querySelectorAll("img")).map((image) =>
