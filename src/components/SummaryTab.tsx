@@ -8,29 +8,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useI18n } from "@/lib/i18n";
 import type { LessonPackage } from "@/lib/lesson-types";
-import { exportNodeToPdf } from "@/lib/pdf-export";
 
 export function SummaryTab({ pkg }: { pkg: LessonPackage }) {
   const { t } = useI18n();
   const ar = pkg.language === "ar";
   const [teacher, setTeacher] = useState("");
-  const [exporting, setExporting] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  const download = async () => {
-    window.alert("تم الضغط على زر طباعة الملخص");
-    if (!sheetRef.current) return;
-    setExporting(true);
-    try {
-      await exportNodeToPdf(sheetRef.current, `${pkg.title || "summary"}.pdf`);
-    } catch (error) {
-      console.error("Summary PDF export failed:", error);
-      window.alert(ar
-        ? "تعذر إنشاء ملف PDF. حدّثي الصفحة وحاولي مرة أخرى."
-        : "Could not create the PDF. Refresh the page and try again.");
-    } finally {
-      setExporting(false);
+  const printSummary = () => {
+    if (!sheetRef.current) {
+      window.alert(ar ? "الملخص غير جاهز للطباعة. حاولي تحديث الصفحة." : "The summary is not ready to print. Please refresh the page.");
+      return;
     }
+
+    const cleanup = () => document.body.classList.remove("printing-summary");
+    document.body.classList.add("printing-summary");
+    window.addEventListener("afterprint", cleanup, { once: true });
+
+    // Let the browser render the print-only layout before opening the dialog.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.print());
+    });
+
+    // Safety fallback for browsers that do not fire afterprint.
+    window.setTimeout(cleanup, 60000);
   };
 
   return (
@@ -47,11 +48,10 @@ export function SummaryTab({ pkg }: { pkg: LessonPackage }) {
           />
         </div>
         <Button
-          onClick={download}
-          disabled={exporting}
+          onClick={printSummary}
           className="rounded-full gradient-hero text-primary-foreground"
         >
-          <Printer className="mr-2 size-4" /> {exporting ? t.preparingPdf : t.printSummary}
+          <Printer className="mr-2 size-4" /> {t.printSummary}
         </Button>
       </div>
 
