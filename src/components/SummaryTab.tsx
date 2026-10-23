@@ -13,25 +13,50 @@ export function SummaryTab({ pkg }: { pkg: LessonPackage }) {
   const { t } = useI18n();
   const ar = pkg.language === "ar";
   const [teacher, setTeacher] = useState("");
+  const [printStatus, setPrintStatus] = useState("");
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const printSummary = () => {
+    setPrintStatus(ar ? "تم الضغط على زر الطباعة، جارٍ تجهيز الملخص..." : "Print clicked. Preparing the summary...");
+
     if (!sheetRef.current) {
-      window.alert(ar ? "الملخص غير جاهز للطباعة. حاولي تحديث الصفحة." : "The summary is not ready to print. Please refresh the page.");
+      setPrintStatus(ar
+        ? "خطأ: لم يتم العثور على ورقة الملخص. حدّثي الصفحة ثم جرّبي مرة أخرى."
+        : "Error: Summary sheet was not found. Refresh the page and try again.");
       return;
     }
 
-    const cleanup = () => document.body.classList.remove("printing-summary");
-    document.body.classList.add("printing-summary");
-    window.addEventListener("afterprint", cleanup, { once: true });
+    try {
+      const cleanup = () => document.body.classList.remove("printing-summary");
+      document.body.classList.add("printing-summary");
+      window.addEventListener("afterprint", () => {
+        cleanup();
+        setPrintStatus(ar
+          ? "أُغلقت نافذة الطباعة. لو لم تحفظي الملف، اضغطي طباعة الملخص وجرّبي اختيار «حفظ كملف PDF»."
+          : "Print dialog closed. If you did not save the file, click Print Summary and choose “Save as PDF”.");
+      }, { once: true });
 
-    // Let the browser render the print-only layout before opening the dialog.
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => window.print());
-    });
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          try {
+            setPrintStatus(ar
+              ? "تم تجهيز الملخص. من المفترض أن تظهر نافذة الطباعة الآن. إذا لم تظهر، جرّبي Ctrl+P."
+              : "Summary prepared. The print dialog should open now. If it does not, try Ctrl+P.");
+            window.print();
+          } catch (error) {
+            cleanup();
+            const details = error instanceof Error ? error.message : String(error);
+            setPrintStatus((ar ? "خطأ أثناء فتح الطباعة: " : "Error opening print dialog: ") + details);
+          }
+        });
+      });
 
-    // Safety fallback for browsers that do not fire afterprint.
-    window.setTimeout(cleanup, 60000);
+      window.setTimeout(cleanup, 60000);
+    } catch (error) {
+      document.body.classList.remove("printing-summary");
+      const details = error instanceof Error ? error.message : String(error);
+      setPrintStatus((ar ? "حدث خطأ في تجهيز الطباعة: " : "Error preparing print: ") + details);
+    }
   };
 
   return (
@@ -54,6 +79,17 @@ export function SummaryTab({ pkg }: { pkg: LessonPackage }) {
           <Printer className="mr-2 size-4" /> {t.printSummary}
         </Button>
       </div>
+
+      {printStatus && (
+        <div
+          role="status"
+          aria-live="polite"
+          dir={ar ? "rtl" : "ltr"}
+          className="no-print rounded-2xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950"
+        >
+          {printStatus}
+        </div>
+      )}
 
       <div ref={sheetRef} className="worksheet-export rounded-3xl bg-card p-4 sm:p-6">
         <div dir={ar ? "rtl" : "ltr"} className="space-y-5">
