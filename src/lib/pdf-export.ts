@@ -14,8 +14,16 @@ export async function exportNodeToPdf(
       image.complete
         ? Promise.resolve()
         : new Promise<void>((resolve) => {
-            image.addEventListener("load", () => resolve(), { once: true });
-            image.addEventListener("error", () => resolve(), { once: true });
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timeout);
+              resolve();
+            };
+            const timeout = setTimeout(finish, 5000);
+            image.addEventListener("load", finish, { once: true });
+            image.addEventListener("error", finish, { once: true });
           }),
     ),
   );
@@ -220,6 +228,14 @@ export async function exportNodeToPdf(
     }
   }
   const url = URL.createObjectURL(blob);
+
+  // Mobile browsers and in-app webviews may ignore synthetic download clicks.
+  // Opening the generated PDF directly lets the user view, save, or print it.
+  if (isMobile) {
+    window.location.href = url;
+    return;
+  }
+
   const link = document.createElement("a");
   link.href = url;
   link.download = safeName;
