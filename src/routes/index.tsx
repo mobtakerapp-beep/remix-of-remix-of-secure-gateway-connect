@@ -317,15 +317,7 @@ function Home() {
                         ? "حفظ الدرس"
                         : "Save lesson"}
                 </Button>
-                <Button
-                  variant="outline"
-                  className="no-print rounded-full"
-                  onClick={() => {
-                    setTab("worksheet");
-                  }}
-                >
-                  <Printer className="mr-2 size-4" /> {t.print}
-                </Button>
+       </Button>
                 <Button
                   variant="outline"
                   className="no-print rounded-full"
