@@ -59,6 +59,49 @@ export function SummaryTab({ pkg }: { pkg: LessonPackage }) {
     }
   };
 
+  const printSummaryInNewWindow = () => {
+    if (!sheetRef.current) {
+      setPrintStatus(ar
+        ? "خطأ: ورقة الملخص غير موجودة. حدّثي الصفحة ثم جرّبي مرة أخرى."
+        : "Error: Summary sheet was not found. Refresh and try again.");
+      return;
+    }
+
+    let printWindow: Window | null = null;
+    try {
+      // Open synchronously from the click so the browser is less likely to block it.
+      printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        setPrintStatus(ar
+          ? "المتصفح منع فتح نافذة الطباعة الجديدة. اسمحي بالنوافذ المنبثقة لهذا الموقع ثم جرّبي الزر مرة أخرى."
+          : "The browser blocked the new print window. Allow pop-ups for this site and try again.");
+        return;
+      }
+
+      const styles = Array.from(
+        document.querySelectorAll('link[rel="stylesheet"], style')
+      ).map((element) => element.outerHTML).join("\\n");
+      const pageTitle = ar ? "طباعة الملخص" : "Print summary";
+      const readyTitle = ar ? "تمت الطباعة" : "Print complete";
+      const page =
+        '<!doctype html><html lang="' + (ar ? "ar" : "en") + '" dir="' + (ar ? "rtl" : "ltr") + '">' +
+        '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + pageTitle + '</title>' +
+        styles +
+        '<style>@page{size:A4 portrait;margin:12mm}body{margin:0;padding:0;background:white;color:#111;font-family:Tahoma,Arial,sans-serif}.worksheet-export{width:100%;padding:0;background:white;color:#111;box-shadow:none;border:0}button,input,textarea,select,[role="button"]{display:none!important}svg{max-width:100%}</style></head><body>' +
+        '<div class="worksheet-export">' + sheetRef.current.innerHTML + '</div>' +
+        '<script>window.addEventListener("load",function(){setTimeout(function(){window.focus();window.print()},700)});window.addEventListener("afterprint",function(){document.title=' + JSON.stringify(readyTitle) + '});<\/script></body></html>';
+      printWindow.document.open();
+      printWindow.document.write(page);
+      printWindow.document.close();
+      setPrintStatus(ar
+        ? "فتحنا الملخص في نافذة جديدة. لو لم تظهر الطباعة، انتقلي إلى النافذة الجديدة من أعلى المتصفح."
+        : "The summary opened in a new window. If printing does not appear, switch to that new window.");
+    } catch (error) {
+      if (printWindow && !printWindow.closed) printWindow.close();
+      const details = error instanceof Error ? error.message : String(error);
+      setPrintStatus((ar ? "تعذر فتح الطباعة البديلة: " : "Alternative print failed: ") + details);
+    }
+  };
   return (
     <div className="space-y-4">
       <div className="no-print flex flex-wrap items-end justify-between gap-4 rounded-3xl border border-border bg-card p-4">
@@ -77,6 +120,14 @@ export function SummaryTab({ pkg }: { pkg: LessonPackage }) {
           className="rounded-full gradient-hero text-primary-foreground"
         >
           <Printer className="mr-2 size-4" /> {t.printSummary}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={printSummaryInNewWindow}
+          className="rounded-full"
+        >
+          <Printer className="mr-2 size-4" /> {ar ? "طباعة بديلة (نافذة جديدة)" : "Alternative print (new window)"}
         </Button>
       </div>
 
