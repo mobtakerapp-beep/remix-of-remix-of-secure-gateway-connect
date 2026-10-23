@@ -121,7 +121,22 @@ export function WorksheetTab({ pkg }: { pkg: LessonPackage }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   useEffect(() => { setHide(getHideMascots()); return subscribeHideMascots(() => setHide(getHideMascots())); }, []);
   const toggleHide = (value: boolean) => { setHide(value); setHideMascots(value); };
-  const downloadPdf = async () => { if (!sheetRef.current) return; setExporting(true); try { await exportNodeToPdf(sheetRef.current, `${pkg.title || "worksheet"} - اختبار.pdf`, { credit: lang === "ar" ? DESIGNER_CREDIT_AR : DESIGNER_CREDIT_EN }); } finally { setExporting(false); } };
+  const downloadPdf = async () => {
+    if (!sheetRef.current) return;
+    setExporting(true);
+    try {
+      await exportNodeToPdf(sheetRef.current, `${pkg.title || "worksheet"} - اختبار.pdf`, {
+        credit: lang === "ar" ? DESIGNER_CREDIT_AR : DESIGNER_CREDIT_EN,
+      });
+    } catch (error) {
+      console.error("Worksheet PDF export failed:", error);
+      window.alert(lang === "ar"
+        ? "تعذر إنشاء ملف PDF. حدّثي الصفحة وحاولي مرة أخرى."
+        : "Could not create the PDF. Refresh the page and try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
   return (
     <div className="space-y-4">
       <div className="no-print flex flex-wrap items-end justify-between gap-4 rounded-3xl border border-border bg-card p-4">
