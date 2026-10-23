@@ -321,7 +321,7 @@ function Home() {
                   variant="outline"
                   className="no-print rounded-full"
                   onClick={() => {
-                    setTab("sheet");
+                    setTab("worksheet");
                   }}
                 >
                   <Printer className="mr-2 size-4" /> {t.print}
