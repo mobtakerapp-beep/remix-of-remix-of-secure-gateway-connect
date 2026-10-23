@@ -22,6 +22,11 @@ export function SummaryTab({ pkg }: { pkg: LessonPackage }) {
     setExporting(true);
     try {
       await exportNodeToPdf(sheetRef.current, `${pkg.title || "summary"}.pdf`);
+    } catch (error) {
+      console.error("Summary PDF export failed:", error);
+      window.alert(ar
+        ? "تعذر إنشاء ملف PDF. حدّثي الصفحة وحاولي مرة أخرى."
+        : "Could not create the PDF. Refresh the page and try again.");
     } finally {
       setExporting(false);
     }
