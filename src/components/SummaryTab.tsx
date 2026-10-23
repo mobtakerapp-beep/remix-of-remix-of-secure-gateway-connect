@@ -18,6 +18,7 @@ export function SummaryTab({ pkg }: { pkg: LessonPackage }) {
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const download = async () => {
+    window.alert("تم الضغط على زر طباعة الملخص");
     if (!sheetRef.current) return;
     setExporting(true);
     try {
